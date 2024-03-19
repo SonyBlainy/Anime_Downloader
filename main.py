@@ -171,8 +171,14 @@ while not sair:
                             TC.gofile(ep)
                         elif ep['ep']['nome_link'] == 'Drive':
                             ep = trat.tratar(ep)
-                            TC.verifica(ep)
-                            gd.baixar(ep)
+                            if type(ep) == bool:
+                                print('Erro! Acesso não autorizado ao arquivo')
+                            else:
+                                TC.verifica(ep)
+                                try:
+                                    gd.baixar(ep)
+                                except:
+                                    print('Erro! Não foi possível baixar pelo Drive, mudando para Gofile')
     elif esco == 2:
         r = ani.listar()
         if type(r) == dict:
@@ -220,4 +226,7 @@ while not sair:
                         if type(ep) == bool:
                             print('Erro! Acesso não autorizado ao arquivo')
                         else:
-                            gd.baixar(ep)
+                            try:
+                                gd.baixar(ep)
+                            except:
+                                print('Erro! Não foi possível baixar pelo Drive, mudando para Gofile')

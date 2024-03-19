@@ -1,13 +1,11 @@
 from selenium import webdriver
-import PyBypass
 import os
 import pickle
-import ouo_bypass
+from ouo_bypass import ouo_bypass
 from sakura.uloz import linkzinho
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.common.action_chains import ActionChains
 from time import sleep as mimir
 from sakura.baixarep import baixarar
@@ -15,17 +13,16 @@ from sakura.baixarep import baixarar
 path = f"C:\\Users\\{os.getlogin()}\\Desktop\\animes\\"
 save = "C:\\Users\\Micro\\AppData\\Local\\Anime_downloader\\"
 ops = Options()
-ops.add_experimental_option("excludeSwitches", ["enable-logging"])
 ops.add_argument('--blink-settings=imagesEnabled=false')
 ops.add_argument('--headless')
 ops.add_argument('--window-size=1366,768')
 ops.add_argument('--disable-popup-blocking')
-server = Service(executable_path='chromedriver.exe')
+server = Service()
 
 
 def pesquisar_anime():
     anime = str(input('Digite o nome do anime: '))
-    with webdriver.Chrome(service=server, options=ops) as navegador:
+    with webdriver.Firefox(service=server, options=ops) as navegador:
         navegador.get('https://www.sakuraanimes.com')
         acoes = ActionChains(navegador)
         mimir(1)
@@ -54,7 +51,7 @@ def pesquisar_anime():
         return animes
     
 def listar_episodios(anime):
-    with webdriver.Chrome(service=server, options=ops) as navegador:
+    with webdriver.Firefox(service=server, options=ops) as navegador:
         acoes = ActionChains(navegador)
         navegador.get(anime['link'])
         mimir(1)
@@ -100,7 +97,7 @@ def listar_episodios(anime):
             link = navegador.find_element(By.CLASS_NAME, 'w-full').find_element(By.TAG_NAME, 'a')
             while True:
                 try:
-                    link = PyBypass.bypass(link.get_attribute('href'))
+                    link = ouo_bypass(link.get_attribute('href'))['bypassed_link']
                 except KeyboardInterrupt:
                     break
                 except Exception as erro:
@@ -114,7 +111,7 @@ def listar_episodios(anime):
             link = navegador.find_element(By.CLASS_NAME, 'w-full').find_element(By.TAG_NAME, 'a')
             while True:
                 try:
-                    link = ouo_bypass.ouo_bypass(link.get_attribute('href'))
+                    link = ouo_bypass(link.get_attribute('href'))['bypassed_link']
                 except KeyboardInterrupt:
                     exit()
                 except Exception as erro:
@@ -162,7 +159,7 @@ def baixar(anime):
         baixarar(anime['ep']['link'], anime['ep']['nome'], caminho, anime['ep']['plataforma'])
       
 def mediafire(ep):
-    with webdriver.Chrome(service=server, options=ops) as navegador:
+    with webdriver.Firefox(service=server, options=ops) as navegador:
         navegador.get(ep['link'])
         mimir(3)
         link = navegador.find_element(value='download_link').find_elements(By.TAG_NAME, 'a')[1]

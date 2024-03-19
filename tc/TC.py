@@ -66,7 +66,6 @@ def episodios(anime):
                 l[nomes[i]] = link
             data['links'] = l
             resultado.append(data)
-        navegador.quit()
         resultado = [resultado[n] for n in range(len(resultado)-1, -1, -1)]
         anime['eps'] = resultado
     return anime
@@ -93,7 +92,7 @@ def baixar(ep):
         link = ep['ep']['links'][nome]
         with webdriver.Firefox(options=ops) as navegador:
             navegador.get(link)
-            mimir(8)
+            mimir(7)
             link = navegador.find_element(By.CLASS_NAME, 'counter').find_element(By.TAG_NAME, 'a').get_attribute('href')
     ep['ep'].pop('links')
     ep['ep']['ep_link'] = link
@@ -116,18 +115,17 @@ def gofile(ep):
         navegador.get(ep['ep']['ep_link'])
         navegador.add_cookie({'name': 'accountToken', 'value': '9EV9xTdiDoQL334CBpB60nPe8K2Rcwtc'})
         navegador.refresh()
-        mimir(10)
-        navegador.refresh()
+        mimir(5)
         try:
-            link = navegador.find_element(By.CLASS_NAME, 'col-md-auto')
-            link = link.find_element(By.XPATH, '..')
+            link = navegador.find_element(By.CLASS_NAME, 'col-md')
+            link = link.find_element(By.CLASS_NAME, 'dropdown-menu')
             link = link.find_element(By.TAG_NAME, 'a')
         except:
             print('Erro! Arquivo temporariamente indisponivel')
             sim = False
         else:
             sim = True
-            nome = link.text
+            nome = (link.get_attribute('href')).split('.')[-1]
             link = link.get_attribute('href')
             ep['ep']['ep_link'] = link
             limpo = ep['nome'].split()
@@ -135,8 +133,6 @@ def gofile(ep):
                 limpo[i] = ''.join([l for l in palavra if l not in [':', '?', '°']])
             limpo = ' '.join(limpo)
             ep['nome'] = limpo
-            nome = nome.split()
-            nome = nome[-1].split('.')[-1]
             nome = '_'.join(ep['nome'].split())+'_'+'_'.join(ep['ep']['ep'].split())+'.'+nome
             ep['ep']['nome'] = nome
             ep['ep'].pop('nome_link')

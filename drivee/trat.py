@@ -1,4 +1,3 @@
-import pickle
 import requests
 from lxml.html import fromstring
 import os
@@ -10,7 +9,7 @@ def tratar(ep):
     nome = ep['nome']
     nome = nome.split()
     limpo = []
-    for i, palavra in enumerate(nome):
+    for palavra in nome:
         limpo.append(''.join([letra for letra in palavra if letra not in [':', '°', '?']]))
     limpo = ' '.join(limpo)
     ep['nome'] = limpo

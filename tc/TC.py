@@ -1,4 +1,6 @@
 from selenium import webdriver
+from drivee import trat
+from drivee import googledrive as gd
 import os
 import pickle
 from selenium.webdriver.common.by import By
@@ -40,10 +42,10 @@ def pesquisar(nome):
             animes.append(data)
     return animes
 
-def episodios(anime):
+def episodios(anime):    
     with webdriver.Firefox(options=ops, service=servico) as navegador:
         navegador.get(anime['link'])
-        mimir(5)
+        mimir(3)
         eps = navegador.find_element(By.CLASS_NAME, 'episodes').find_elements(By.CLASS_NAME, 'tooltip-container')
         resultado = list()
         for ep in eps:
@@ -61,14 +63,47 @@ def episodios(anime):
             nomes = [n for n in ep.find_element(By.CLASS_NAME, 'episode-info-links').find_elements(By.TAG_NAME, 'a')]
             for i, n in enumerate(nomes):
                 nomes[i] = n.text.split()[0]
+            se = ['Drive', 'Gofile']
             l = dict()
             for i, link in enumerate(links):
                 l[nomes[i]] = link
             data['links'] = l
+            for li in data['links'].copy():
+                if li not in se:
+                    data['links'].pop(li)
             resultado.append(data)
         resultado = [resultado[n] for n in range(len(resultado)-1, -1, -1)]
         anime['eps'] = resultado
-    return anime
+    print('='*30)
+    for i, ep in enumerate(anime['eps']):
+        print(f'[{i}] {ep["ep"]}')
+    while True:
+        try:
+            esco = str(input('Escolha um episodio ou digite sair: '))
+            esco = int(esco)
+        except:
+            if esco.upper() == 'SAIR':
+                break
+            else:
+                print('Erro! Tente novamente')
+        else:
+            break
+    if type(esco) == int:
+        anime['ep'] = anime['eps'][esco]
+        anime.pop('eps')
+        ep = baixar(anime)
+        if ep['ep']['nome_link'] == 'Gofile':
+            gofile(ep)
+        elif ep['ep']['nome_link'] == 'Drive':
+            ep = trat.tratar(ep)
+            if type(ep) == bool:
+                print('Erro! Acesso não autorizado ao arquivo')
+            else:
+                verifica(ep)
+                try:
+                    gd.baixar(ep)
+                except:
+                    print('Erro! Não foi possível baixar pelo Drive, mudando para Gofile')
 
 def baixar(ep):
     for i, e in enumerate(ep['ep']['links']):

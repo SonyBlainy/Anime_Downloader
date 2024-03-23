@@ -2,7 +2,6 @@ from selenium import webdriver
 import os
 import pickle
 from ouo_bypass import ouo_bypass
-from sakura.uloz import linkzinho
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service

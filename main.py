@@ -149,36 +149,6 @@ while not sair:
                         break
                 if type(esco) == int:
                     episodios = TC.episodios(animes[esco])
-                    print('='*30)
-                    for i, ep in enumerate(episodios['eps']):
-                        print(f'[{i}] {ep["ep"]}')
-                    while True:
-                        try:
-                            esco = str(input('Escolha um episodio ou digite sair: '))
-                            esco = int(esco)
-                        except:
-                            if esco.upper() == 'SAIR':
-                                break
-                            else:
-                                print('Erro! Tente novamente')
-                        else:
-                            break
-                    if type(esco) == int:
-                        episodios['ep'] = episodios['eps'][esco]
-                        episodios.pop('eps')
-                        ep = TC.baixar(episodios)
-                        if ep['ep']['nome_link'] == 'Gofile':
-                            TC.gofile(ep)
-                        elif ep['ep']['nome_link'] == 'Drive':
-                            ep = trat.tratar(ep)
-                            if type(ep) == bool:
-                                print('Erro! Acesso não autorizado ao arquivo')
-                            else:
-                                TC.verifica(ep)
-                                try:
-                                    gd.baixar(ep)
-                                except:
-                                    print('Erro! Não foi possível baixar pelo Drive, mudando para Gofile')
     elif esco == 2:
         r = ani.listar()
         if type(r) == dict:
@@ -201,32 +171,4 @@ while not sair:
                 Sakura.baixar(anime)
             elif r['site'] == 'TC':
                 episodios = TC.episodios(r)
-                print('='*30)
-                for i, ep in enumerate(episodios['eps']):
-                    print(f'[{i}] {ep["ep"]}')
-                while True:
-                    try:
-                        esco = str(input('Escolha um episodio ou digite sair: '))
-                        esco = int(esco)
-                    except:
-                        if esco.upper() == 'SAIR':
-                            break
-                        else:
-                            print('Erro! Tente novamente')
-                    else:
-                        break
-                if type(esco) == int:
-                    episodios['ep'] = episodios['eps'][esco]
-                    episodios.pop('eps')
-                    ep = TC.baixar(episodios)
-                    if ep['ep']['nome_link'] == 'Gofile':
-                        TC.gofile(ep)
-                    elif ep['ep']['nome_link'] == 'Drive':
-                        ep = trat.tratar(ep)
-                        if type(ep) == bool:
-                            print('Erro! Acesso não autorizado ao arquivo')
-                        else:
-                            try:
-                                gd.baixar(ep)
-                            except:
-                                print('Erro! Não foi possível baixar pelo Drive, mudando para Gofile')
+                

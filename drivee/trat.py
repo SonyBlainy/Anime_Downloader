@@ -20,10 +20,11 @@ def tratar(ep):
     try:
         estensao = estensao.split()
     except:
-        return False
+        ep['erro'] = True
+        return ep
     else:
         estensao = estensao[-4].split('.')[-1]
         ep['ep']['nome'] = '_'.join(ep['nome'].split())+'_'+'_'.join(ep['ep']['ep'].split())+f'.{estensao}'
         ep['ep']['caminho'] = path+'_'.join(ep['nome'].split())
-        ep['ep'].pop('nome_link')
+        ep['erro'] = False
         return ep

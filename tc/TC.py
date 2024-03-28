@@ -94,15 +94,16 @@ def episodios(anime):
         ep = baixar(anime)
         while True:
             if ep['ep']['nome_link'] == 'Gofile':
-                g = gofile(ep)
-                if not g:
+                ep = gofile(ep)
+                if ep['erro']:
                     print('Mudando para Drive')
                     ep = baixar(ep, True)
                 else:
                     break
             elif ep['ep']['nome_link'] == 'Drive':
                 ep = trat.tratar(ep)
-                if type(ep) == bool:
+                if ep['erro']:
+                    ep.pop('erro')
                     print('Erro! Acesso não autorizado ao arquivo, mudando para Gofile')
                     ep = baixar(ep, True)
                 else:
@@ -110,7 +111,9 @@ def episodios(anime):
                     try:
                         gd.baixar(ep)
                     except:
+                        ep.pop('erro')
                         print('Erro! Não foi possível baixar pelo Drive, mudando para Gofile')
+                        ep['nome'] = ' '.join(ep['nome'].split('_'))
                         ep = baixar(ep, True)
                     else:
                         break
@@ -177,7 +180,8 @@ def gofile(ep):
             link = link.find_element(By.TAG_NAME, 'a')
         except:
             print('Erro! Arquivo temporariamente indisponivel')
-            return False
+            ep['erro'] = True
+            return ep
         else:
             sim = True
             nome = (link.get_attribute('href')).split('.')[-1]
@@ -190,13 +194,13 @@ def gofile(ep):
             ep['nome'] = limpo
             nome = '_'.join(ep['nome'].split())+'_'+'_'.join(ep['ep']['ep'].split())+'.'+nome
             ep['ep']['nome'] = nome
-            ep['ep'].pop('nome_link')
             ep['ep']['caminho'] = path+'_'.join(ep['nome'].split())+'\\'
             c = dict()
             cu = navegador.get_cookies()
             for i in cu:
                 c[i['name']] = i['value']
             ep['ep']['cookie'] = c
+            ep['erro'] = False
     if sim:
         verifica(ep)
         baixaai.baixarar(ep)

@@ -88,7 +88,8 @@ while not sair:
                             for e in escolha:
                                 ani.baixar(eps[e-1])
         elif esco == 2:
-            resul = Sakura.pesquisar_anime()
+            nome = str(input('Digite o nome do anime: '))
+            resul = Sakura.pesquisar_anime(nome)
             if resul == []:
                 print('Nenhum anime encontrado')
             else:

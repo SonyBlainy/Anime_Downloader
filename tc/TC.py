@@ -92,44 +92,64 @@ def episodios(anime):
         anime['ep'] = anime['eps'][esco]
         anime.pop('eps')
         ep = baixar(anime)
-        if ep['ep']['nome_link'] == 'Gofile':
-            gofile(ep)
-        elif ep['ep']['nome_link'] == 'Drive':
-            ep = trat.tratar(ep)
-            if type(ep) == bool:
-                print('Erro! Acesso não autorizado ao arquivo')
-            else:
-                verifica(ep)
-                try:
-                    gd.baixar(ep)
-                except:
-                    print('Erro! Não foi possível baixar pelo Drive, mudando para Gofile')
+        while True:
+            if ep['ep']['nome_link'] == 'Gofile':
+                g = gofile(ep)
+                if not g:
+                    print('Mudando para Drive')
+                    ep = baixar(ep, True)
+                else:
+                    break
+            elif ep['ep']['nome_link'] == 'Drive':
+                ep = trat.tratar(ep)
+                if type(ep) == bool:
+                    print('Erro! Acesso não autorizado ao arquivo, mudando para Gofile')
+                    ep = baixar(ep, True)
+                else:
+                    verifica(ep)
+                    try:
+                        gd.baixar(ep)
+                    except:
+                        print('Erro! Não foi possível baixar pelo Drive, mudando para Gofile')
+                        ep = baixar(ep, True)
+                    else:
+                        break
 
-def baixar(ep):
-    for i, e in enumerate(ep['ep']['links']):
-        print(f'[{i}] {e}')
-    while True:
-        try:
-            esco = str(input('Escolha de qual servidor deseja baixar ou digite sair: '))
-            esco = int(esco)
-        except:
-            if esco.upper() == 'SAIR':
-                break
+def baixar(ep, mudando=False):
+    if not mudando:
+        for i, e in enumerate(ep['ep']['links']):
+            print(f'[{i}] {e}')
+        while True:
+            try:
+                esco = str(input('Escolha de qual servidor deseja baixar ou digite sair: '))
+                esco = int(esco)
+            except:
+                if esco.upper() == 'SAIR':
+                    break
+                else:
+                    print('Erro! Tente novamente')
             else:
-                print('Erro! Tente novamente')
-        else:
-            if esco >= 0 and esco < len(ep['ep']['links']):
+                if esco >= 0 and esco < len(ep['ep']['links']):
+                    break
+                else:
+                    print('Erro! Opção inválida')
+        if type(esco) == int:
+            nome = [k for k in ep['ep']['links']][esco]
+            link = ep['ep']['links'][nome]
+            with webdriver.Firefox(options=ops, service=servico) as navegador:
+                navegador.get(link)
+                mimir(7)
+                link = navegador.find_element(By.CLASS_NAME, 'counter').find_element(By.TAG_NAME, 'a').get_attribute('href')
+    else:
+        for n in ep['ep']['links']:
+            if n != ep['ep']['nome_link']:
+                nome = n
+                link = ep['ep']['links'][nome]
+                with webdriver.Firefox(options=ops, service=servico) as navegador:
+                    navegador.get(link)
+                    mimir(7)
+                    link = navegador.find_element(By.CLASS_NAME, 'counter').find_element(By.TAG_NAME, 'a').get_attribute('href')
                 break
-            else:
-                print('Erro! Opção inválida')
-    if type(esco) == int:
-        nome = [k for k in ep['ep']['links']][esco]
-        link = ep['ep']['links'][nome]
-        with webdriver.Firefox(options=ops) as navegador:
-            navegador.get(link)
-            mimir(7)
-            link = navegador.find_element(By.CLASS_NAME, 'counter').find_element(By.TAG_NAME, 'a').get_attribute('href')
-    ep['ep'].pop('links')
     ep['ep']['ep_link'] = link
     ep['ep']['nome_link'] = nome
     return ep
@@ -146,7 +166,7 @@ def verifica(ep):
             pickle.dump(ep_save, arquivo)
 
 def gofile(ep):
-    with webdriver.Firefox(options=ops) as navegador:
+    with webdriver.Firefox(options=ops, service=servico) as navegador:
         navegador.get(ep['ep']['ep_link'])
         navegador.add_cookie({'name': 'accountToken', 'value': '9EV9xTdiDoQL334CBpB60nPe8K2Rcwtc'})
         navegador.refresh()
@@ -157,7 +177,7 @@ def gofile(ep):
             link = link.find_element(By.TAG_NAME, 'a')
         except:
             print('Erro! Arquivo temporariamente indisponivel')
-            sim = False
+            return False
         else:
             sim = True
             nome = (link.get_attribute('href')).split('.')[-1]

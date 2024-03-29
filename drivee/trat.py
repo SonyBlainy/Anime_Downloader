@@ -19,11 +19,11 @@ def tratar(ep):
     estensao = html.findtext('.//title')
     try:
         estensao = estensao.split()
+        estensao = estensao[-4].split('.')[-1]
     except:
         ep['erro'] = True
         return ep
     else:
-        estensao = estensao[-4].split('.')[-1]
         ep['ep']['nome'] = '_'.join(ep['nome'].split())+'_'+'_'.join(ep['ep']['ep'].split())+f'.{estensao}'
         ep['ep']['caminho'] = path+'_'.join(ep['nome'].split())
         ep['erro'] = False

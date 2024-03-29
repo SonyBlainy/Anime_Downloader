@@ -85,6 +85,8 @@ def episodios(anime):
             if esco.upper() == 'SAIR':
                 break
             else:
+                if '-' in esco:
+                    break
                 print('Erro! Tente novamente')
         else:
             break
@@ -117,6 +119,37 @@ def episodios(anime):
                         ep = baixar(ep, True)
                     else:
                         break
+    else:
+        varios = [int(e) for e in esco.split('-')]
+        for e in varios:
+            anime['ep'] = anime['eps'][e]
+            anime.pop('eps')
+            ep = baixar(anime)
+            while True:
+                if ep['ep']['nome_link'] == 'Gofile':
+                    ep = gofile(ep)
+                    if ep['erro']:
+                        print('Mudando para Drive')
+                        ep = baixar(ep, True)
+                    else:
+                        break
+                elif ep['ep']['nome_link'] == 'Drive':
+                    ep = trat.tratar(ep)
+                    if ep['erro']:
+                        ep.pop('erro')
+                        print('Erro! Acesso não autorizado ao arquivo, mudando para Gofile')
+                        ep = baixar(ep, True)
+                    else:
+                        verifica(ep)
+                        try:
+                            gd.baixar(ep)
+                        except:
+                            ep.pop('erro')
+                            print('Erro! Não foi possível baixar pelo Drive, mudando para Gofile')
+                            ep['nome'] = ' '.join(ep['nome'].split('_'))
+                            ep = baixar(ep, True)
+                        else:
+                            break
 
 def baixar(ep, mudando=False):
     if not mudando:

@@ -121,8 +121,9 @@ def episodios(anime):
                         break
     else:
         varios = [int(e) for e in esco.split('-')]
-        for e in varios:
-            anime['ep'] = anime['eps'][e]
+        anime['eps'] = [e for i, e in enumerate(anime['eps']) if i in varios]
+        for e in anime['eps']:
+            anime['ep'] = e
             ep = baixar(anime)
             while True:
                 if ep['ep']['nome_link'] == 'Gofile':

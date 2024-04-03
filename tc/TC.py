@@ -124,7 +124,7 @@ def episodios(anime):
         anime['eps'] = [e for i, e in enumerate(anime['eps']) if i in varios]
         for e in anime['eps']:
             anime['ep'] = e
-            ep = baixar(anime)
+            ep = baixar(anime, varios=True)
             while True:
                 if ep['ep']['nome_link'] == 'Gofile':
                     ep = gofile(ep)
@@ -151,24 +151,28 @@ def episodios(anime):
                         else:
                             break
 
-def baixar(ep, mudando=False):
+def baixar(ep, mudando=False, varios=False):
     if not mudando:
-        for i, e in enumerate(ep['ep']['links']):
-            print(f'[{i}] {e}')
-        while True:
-            try:
-                esco = str(input('Escolha de qual servidor deseja baixar ou digite sair: '))
-                esco = int(esco)
-            except:
-                if esco.upper() == 'SAIR':
-                    break
+        if not varios:
+            for i, e in enumerate(ep['ep']['links']):
+                print(f'[{i}] {e}')
+            while True:
+                try:
+                    esco = str(input('Escolha de qual servidor deseja baixar ou digite sair: '))
+                    esco = int(esco)
+                except:
+                    if esco.upper() == 'SAIR':
+                        break
+                    else:
+                        print('Erro! Tente novamente')
                 else:
-                    print('Erro! Tente novamente')
-            else:
-                if esco >= 0 and esco < len(ep['ep']['links']):
-                    break
-                else:
-                    print('Erro! Opção inválida')
+                    if esco >= 0 and esco < len(ep['ep']['links']):
+                        break
+                    else:
+                        print('Erro! Opção inválida')
+        else:
+            esco = [l for l in ep['ep']['links']]
+            esco = esco.index('Drive')
         if type(esco) == int:
             nome = [k for k in ep['ep']['links']][esco]
             link = ep['ep']['links'][nome]
@@ -237,3 +241,4 @@ def gofile(ep):
     if sim:
         verifica(ep)
         baixaai.baixarar(ep)
+    return ep

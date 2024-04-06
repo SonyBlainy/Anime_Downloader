@@ -184,20 +184,30 @@ def baixar(ep, mudando=False, varios=False):
             r = fromstring(r.content)
             linkid = r.get_element_by_id('link-id')
             linkid = linkid.get('value')
-            link = requests.get(pega+str(linkid)).text
-            print(link)
-            link = eval(link)['link']
+            while True:
+                try:
+                    link = requests.get(pega+str(linkid)).json()['link']
+                except:
+                    pass
+                else:
+                    break
     else:
         for n in ep['ep']['links']:
             if n != ep['ep']['nome_link']:
+                esco = [i for i, c in enumerate(ep['ep']['links']) if c == n][0]
                 nome = n
                 link = ep['ep']['links'][nome]
                 r = requests.get(link)
                 r = fromstring(r.content)
                 linkid = r.get_element_by_id('link-id')
                 linkid = linkid.get('value')
-                link = requests.get(pega+str(linkid)).text
-                link = eval(link)['link']
+                while True:
+                    try:
+                        link = requests.get(pega+str(linkid)).json()['link']
+                    except:
+                        pass
+                    else:
+                        break
                 break
     if type(esco) == int:
         ep['ep']['ep_link'] = link

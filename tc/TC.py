@@ -10,6 +10,8 @@ from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.common.action_chains import ActionChains
 from time import sleep as mimir
 import tc.baixarep as baixaai
+import requests
+from lxml.html import fromstring
 
 path = f"C:\\Users\\{os.getlogin()}\\Desktop\\animes\\"
 save = "C:\\Users\\Micro\\AppData\\Local\\Anime_downloader\\"
@@ -120,38 +122,40 @@ def episodios(anime):
                     else:
                         break
     else:
-        varios = [int(e) for e in esco.split('-')]
-        anime['eps'] = [e for i, e in enumerate(anime['eps']) if i in varios]
-        for e in anime['eps']:
-            anime['ep'] = e
-            ep = baixar(anime, varios=True)
-            while True:
-                if ep['ep']['nome_link'] == 'Gofile':
-                    ep = gofile(ep)
-                    if ep['erro']:
-                        print('Mudando para Drive')
-                        ep = baixar(ep, True)
-                    else:
-                        break
-                elif ep['ep']['nome_link'] == 'Drive':
-                    ep = trat.tratar(ep)
-                    if ep['erro']:
-                        ep.pop('erro')
-                        print('Erro! Acesso não autorizado ao arquivo, mudando para Gofile')
-                        ep = baixar(ep, True)
-                    else:
-                        verifica(ep)
-                        try:
-                            gd.baixar(ep)
-                        except:
-                            ep.pop('erro')
-                            print('Erro! Não foi possível baixar pelo Drive, mudando para Gofile')
-                            ep['nome'] = ' '.join(ep['nome'].split('_'))
+        if esco.upper() != 'SAIR':
+            varios = [int(e) for e in esco.split('-')]
+            anime['eps'] = [e for i, e in enumerate(anime['eps']) if i in varios]
+            for e in anime['eps']:
+                anime['ep'] = e
+                ep = baixar(anime, varios=True)
+                while True:
+                    if ep['ep']['nome_link'] == 'Gofile':
+                        ep = gofile(ep)
+                        if ep['erro']:
+                            print('Mudando para Drive')
                             ep = baixar(ep, True)
                         else:
                             break
+                    elif ep['ep']['nome_link'] == 'Drive':
+                        ep = trat.tratar(ep)
+                        if ep['erro']:
+                            ep.pop('erro')
+                            print('Erro! Acesso não autorizado ao arquivo, mudando para Gofile')
+                            ep = baixar(ep, True)
+                        else:
+                            verifica(ep)
+                            try:
+                                gd.baixar(ep)
+                            except:
+                                ep.pop('erro')
+                                print('Erro! Não foi possível baixar pelo Drive, mudando para Gofile')
+                                ep['nome'] = ' '.join(ep['nome'].split('_'))
+                                ep = baixar(ep, True)
+                            else:
+                                break
 
 def baixar(ep, mudando=False, varios=False):
+    pega = 'https://protetor.animestc.xyz/api/link/'
     if not mudando:
         if not varios:
             for i, e in enumerate(ep['ep']['links']):
@@ -176,22 +180,28 @@ def baixar(ep, mudando=False, varios=False):
         if type(esco) == int:
             nome = [k for k in ep['ep']['links']][esco]
             link = ep['ep']['links'][nome]
-            with webdriver.Firefox(options=ops, service=servico) as navegador:
-                navegador.get(link)
-                mimir(7)
-                link = navegador.find_element(By.CLASS_NAME, 'counter').find_element(By.TAG_NAME, 'a').get_attribute('href')
+            r = requests.get(link)
+            r = fromstring(r.content)
+            linkid = r.get_element_by_id('link-id')
+            linkid = linkid.get('value')
+            link = requests.get(pega+str(linkid)).text
+            print(link)
+            link = eval(link)['link']
     else:
         for n in ep['ep']['links']:
             if n != ep['ep']['nome_link']:
                 nome = n
                 link = ep['ep']['links'][nome]
-                with webdriver.Firefox(options=ops, service=servico) as navegador:
-                    navegador.get(link)
-                    mimir(7)
-                    link = navegador.find_element(By.CLASS_NAME, 'counter').find_element(By.TAG_NAME, 'a').get_attribute('href')
+                r = requests.get(link)
+                r = fromstring(r.content)
+                linkid = r.get_element_by_id('link-id')
+                linkid = linkid.get('value')
+                link = requests.get(pega+str(linkid)).text
+                link = eval(link)['link']
                 break
-    ep['ep']['ep_link'] = link
-    ep['ep']['nome_link'] = nome
+    if type(esco) == int:
+        ep['ep']['ep_link'] = link
+        ep['ep']['nome_link'] = nome
     return ep
 
 def verifica(ep):

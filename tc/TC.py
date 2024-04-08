@@ -4,14 +4,13 @@ from drivee import googledrive as gd
 import os
 import pickle
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
-from selenium.webdriver.common.action_chains import ActionChains
 from time import sleep as mimir
 import tc.baixarep as baixaai
 import requests
 from lxml.html import fromstring
+import base64
 
 path = f"C:\\Users\\{os.getlogin()}\\Desktop\\animes\\"
 save = "C:\\Users\\Micro\\AppData\\Local\\Anime_downloader\\"
@@ -25,57 +24,76 @@ servico = Service()
 
 
 def pesquisar(nome):
-    with webdriver.Firefox(options=ops) as navegador:
-        navegador.get('https://www.animestc.net/animes')
-        acoes = ActionChains(navegador)
-        busca = navegador.find_element(By.CLASS_NAME, 'anime-entry')
-        busca = busca.find_element(By.TAG_NAME, 'input')
-        acoes.send_keys_to_element(busca, nome).perform()
-        acoes.send_keys_to_element(busca, Keys.ENTER).perform()
-        mimir(4)
-        busca = navegador.find_element(By.CLASS_NAME, 'anime-entry-container')
-        busca = busca.find_elements(By.XPATH, '*')
-        animes = list()
-        for a in busca:
-            data = dict()
-            link = a.get_attribute('href')
-            data['link'] = link
-            data['nome'] = a.find_element(By.CLASS_NAME, 'anime-entry-figure').find_element(By.TAG_NAME, 'img').get_attribute('alt')
-            animes.append(data)
+    link = 'https://www.animestc.net/animes/'
+    api = 'https://api2.animestc.com/series'
+    para = {'order': 'title', 'direction': 'asc', 'page': 1, 'type': 'series', 'search': nome}
+    r = requests.get(api, params=para)
+    animes = list()
+    for anime in r.json()['data']:
+        data = dict()
+        data['nome'] = anime['title']
+        data['link'] = link+anime['slug']
+        animes.append(data)
     return animes
 
-def episodios(anime):    
-    with webdriver.Firefox(options=ops, service=servico) as navegador:
-        navegador.get(anime['link'])
-        mimir(3)
-        eps = navegador.find_element(By.CLASS_NAME, 'episodes').find_elements(By.CLASS_NAME, 'tooltip-container')
-        resultado = list()
-        for ep in eps:
-            data = dict()
-            ep = ep.find_element(By.CLASS_NAME, 'episode-info')
-            data['ep'] = ep.find_element(By.CLASS_NAME, 'episode-info-title').find_elements(By.TAG_NAME, 'a')[1].text
-            hd = ep.find_element(By.CLASS_NAME, 'episode-info-tabs').find_elements(By.TAG_NAME, 'a')
-            for h in hd:
-                if h.text.split()[0] == '1080p':
-                    navegador.execute_script('arguments[0].scrollIntoView();', h)
-                    navegador.execute_script('arguments[0].click();', h)
-            links = [l for l in ep.find_element(By.CLASS_NAME, 'episode-info-links').find_elements(By.TAG_NAME, 'a')]
-            for i, l in enumerate(links):
-                links[i] = l.get_attribute('href')
-            nomes = [n for n in ep.find_element(By.CLASS_NAME, 'episode-info-links').find_elements(By.TAG_NAME, 'a')]
-            for i, n in enumerate(nomes):
-                nomes[i] = n.text.split()[0]
-            se = ['Drive', 'Gofile']
-            l = dict()
-            for i, link in enumerate(links):
-                l[nomes[i]] = link
-            data['links'] = l
-            for li in data['links'].copy():
-                if li not in se:
-                    data['links'].pop(li)
-            resultado.append(data)
-        resultado = [resultado[n] for n in range(len(resultado)-1, -1, -1)]
-        anime['eps'] = resultado
+def episodios(anime):
+    prote = 'https://protetor.animestc.xyz/link/'
+    resulta= requests.get(anime['link'])
+    resulta = resulta.content.decode(resulta.apparent_encoding)
+    resulta = fromstring(resulta)
+    r = resulta.get_element_by_id('__nuxt')
+    r = r.xpath('following::script[1]')[0]
+    r = r.text
+    r = '{'.join(r.split('{')[2:])
+    ids = []
+    for i in r.split('id'):
+        a = i.split(',')
+        if a[0][0] == ':':
+            n = a[0][1:]
+            try:
+                n = int(n)
+            except:
+                pass
+            else:
+                ids.append(n)
+    ids = list(ids.__reversed__())
+    eps = resulta.find_class('episodes')[0]
+    eps = eps.find_class('tooltip-container')
+    copia = eps.copy()
+    nomes = []
+    for nome in copia:
+        nome = nome.find_class('episode-info-title')[1]
+        nome = nome.find('a[2]').text
+        nomes.append(nome)
+    nomes = list(nomes.__reversed__())
+    posi = []
+    for posicao in eps:
+        se = dict()
+        posicao = posicao.find_class('episode-info-links')[0]
+        posicao = posicao.xpath('a')
+        sim = ['gofile', 'drive']
+        for p in posicao:
+            if p.text.strip() in sim:
+                se[p.text.strip().capitalize()] = posicao.index(p)
+        posi.append(se)
+    posi = list(posi.__reversed__())
+    eps = []
+    for i in range(0, len(nomes)):
+        ep = dict()
+        ep['ep'] = nomes[i]
+        links = dict()
+        for l in posi:
+            for key in list(l.keys()):
+                if key == 'Gofile' or key == 'Drive':
+                    frase = f'{str(ids[i])}/high/{l[key]}'
+                    frase = frase.encode('ascii')
+                    frase = base64.b64encode(frase)
+                    frase = frase.decode('ascii')
+                    frase = prote+frase
+                    links[key] = frase
+        ep['links'] = links
+        eps.append(ep)
+    anime['eps'] = eps
     print('='*30)
     for i, ep in enumerate(anime['eps']):
         print(f'[{i}] {ep["ep"]}')

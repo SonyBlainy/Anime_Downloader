@@ -69,12 +69,12 @@ def episodios(anime):
     posi = []
     for posicao in eps:
         se = dict()
-        posicao = posicao.find_class('episode-info-links')[0]
-        posicao = posicao.xpath('a')
+        azinho = posicao.find_class('episode-info-links')[0]
+        azinho = azinho.xpath('a')
         sim = ['gofile', 'drive']
-        for p in posicao:
+        for p in azinho:
             if p.text.strip() in sim:
-                se[p.text.strip().capitalize()] = posicao.index(p)
+                se[p.text.strip().capitalize()] = azinho.index(p)
         posi.append(se)
     posi = list(posi.__reversed__())
     eps = []
@@ -82,15 +82,13 @@ def episodios(anime):
         ep = dict()
         ep['ep'] = nomes[i]
         links = dict()
-        for l in posi:
-            for key in list(l.keys()):
-                if key == 'Gofile' or key == 'Drive':
-                    frase = f'{str(ids[i])}/high/{l[key]}'
-                    frase = frase.encode('ascii')
-                    frase = base64.b64encode(frase)
-                    frase = frase.decode('ascii')
-                    frase = prote+frase
-                    links[key] = frase
+        for f in posi[i].keys():
+            frase = f'{str(ids[i])}/high/{posi[i][f]}'
+            frase = frase.encode('ascii')
+            frase = base64.b64encode(frase)
+            frase = frase.decode('ascii')
+            frase = prote+frase
+            links[f] = frase
         ep['links'] = links
         eps.append(ep)
     anime['eps'] = eps
@@ -114,7 +112,7 @@ def episodios(anime):
         anime['ep'] = anime['eps'][esco]
         anime.pop('eps')
         ep = baixar(anime)
-        while True:
+        while True and ep['ep']['nome_link'] != None:
             if ep['ep']['nome_link'] == 'Gofile':
                 ep = gofile(ep)
                 if ep['erro']:
@@ -230,6 +228,8 @@ def baixar(ep, mudando=False, varios=False):
     if type(esco) == int:
         ep['ep']['ep_link'] = link
         ep['ep']['nome_link'] = nome
+    else:
+        ep['ep']['nome_link'] = None
     return ep
 
 def verifica(ep):

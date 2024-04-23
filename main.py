@@ -136,7 +136,7 @@ while not sair:
             else:
                 print('='*30)
                 for i, a in enumerate(animes):
-                    print(f'[{i}] {a["nome"]}')
+                    print(f'[{i}] {a.nome}')
                 while True:
                     try:
                         esco = str(input('Escolha o anime que deseja baixar ou digite sair: '))
@@ -149,7 +149,19 @@ while not sair:
                     else:
                         break
                 if type(esco) == int:
-                    episodios = TC.episodios(animes[esco])
+                    animes = animes[esco]
+                    animes.ep()
+                    animes.listar()
+                    if type(animes.ep) == list:
+                        copia = animes
+                        for ep in animes.ep:
+                            copia.ep = TC.baixar(ep, varios=True)
+                            copia.verificar()
+                            copia.baixar()
+                    else:
+                        animes.ep = TC.baixar(animes.ep)
+                        animes.verificar()
+                        animes.baixar()
     elif esco == 2:
         r = ani.listar()
         if type(r) == dict:
@@ -170,6 +182,16 @@ while not sair:
                             print('Erro! Opção inválida')
                 anime['ep'] = anime['ep'][esco]
                 Sakura.baixar(anime)
-            elif r['site'] == 'TC':
-                episodios = TC.episodios(r)
-                
+        elif r.site == 'TC':
+            r.ep()
+            r.listar()
+            if type(r.ep) == list:
+                copia = r
+                for ep in r.ep:
+                    copia.ep = TC.baixar(ep, varios=True)
+                    copia.verificar()
+                    copia.baixar()
+            else:
+                r.ep = TC.baixar(r.ep)
+                r.verificar()
+                r.baixar()

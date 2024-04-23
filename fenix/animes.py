@@ -204,11 +204,11 @@ def listar():
                             except:
                                 print('Erro! Arquivo não existe, baixe um episodio do anime para criar')
                             else:
-                                if dados['link'].split('.')[1] == 'animestc':
-                                    dados['site'] = 'TC'
+                                if dados.link.split('.')[1] == 'animestc':
+                                    dados.site = 'TC'
                                 elif 'sakuraanimes' in dados['link']:
                                     dados['site'] = 'Sakura'
                                 return dados
                     else:
                         if 0 <= esc < len(arquivo):
-                            os.popen(f'start {caminho}\\{arquivo[esc]}')
+                            os.popen(f'{caminho}\\{arquivo[esc]}')

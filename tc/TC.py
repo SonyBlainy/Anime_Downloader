@@ -1,12 +1,8 @@
-from selenium import webdriver
 from drivee.trat import tratar
 from drivee import googledrive as gd
+from gdown import exceptions as errinho
 import os
 import pickle
-from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.service import Service
-from time import sleep as mimir
 import tc.baixarep as baixaai
 import requests
 from lxml.html import fromstring
@@ -14,20 +10,13 @@ import base64
 
 path = f"C:\\Users\\{os.getlogin()}\\Desktop\\animes\\"
 save = "C:\\Users\\Micro\\AppData\\Local\\Anime_downloader\\"
-ops = Options()
-ops.add_argument('--blink-settings=imagesEnabled=false')
-ops.add_argument('--log-level=10')
-ops.add_argument('--headless')
-ops.add_argument('--window-size=1366,768')
-ops.add_argument('--disable-popup-blocking')
-servico = Service()
 
 
 class Anime:
     def __init__(self, nome, link):
         self.nome = nome
         self.link = link
-    def ep(self):
+    def eps(self):
         self.ep = episodios(self)
     def listar(self):
         print('='*30)
@@ -57,22 +46,28 @@ class Anime:
                 self.ep = [ep for ep in self.ep if self.ep.index(ep) in esco]
             else:
                 self.ep = None
-    def verificar(self):
-        verifica(self)
     def baixar(self):
-        if self.ep.server == 'Drive':
-            self = tratar(self)
-            if self.ep.erro:
-                print('Erro! Mundando para Gofile')
-                self.ep.server = 'Gofile'
-            else:
-                try:
-                    gd.baixar(self.ep)
-                except:
-                    print('Erro ao baixar, mundando para Gofile')
+        if self.ep.server == None:
+            print('Erro ao baixar')
+        else:
+            if self.ep.server == 'Drive':
+                self = tratar(self)
+                verifica(self)
+                if self.ep.erro:
+                    print('Erro! Mundando para Gofile')
                     self.ep.server = 'Gofile'
-        if self.ep.server == 'Gofile':
-            pass
+                else:
+                    try:
+                        gd.baixar(self.ep)
+                    except Exception as erro:
+                        if erro.__class__ == errinho.FileURLRetrievalError:
+                            print('Erro! Muitas tentativas de download do arquivo, tente mais tarde')
+                        else:
+                            print(type(erro))
+            if self.ep.server == 'Gofile':
+                self = gofile(self)
+                if not self.ep.erro:
+                    pass
         
 class Ep:
     def __init__(self, ep):
@@ -224,40 +219,22 @@ def verifica(anime):
             anime.ep = None
             pickle.dump(anime, arquivo)
 
-def gofile(ep):
-    with webdriver.Firefox(options=ops, service=servico) as navegador:
-        navegador.get(ep['ep']['ep_link'])
-        navegador.add_cookie({'name': 'accountToken', 'value': '9EV9xTdiDoQL334CBpB60nPe8K2Rcwtc'})
-        navegador.refresh()
-        mimir(5)
-        try:
-            link = navegador.find_element(By.CLASS_NAME, 'col-md')
-            link = link.find_element(By.CLASS_NAME, 'dropdown-menu')
-            link = link.find_element(By.TAG_NAME, 'a')
-        except:
-            print('Erro! Arquivo temporariamente indisponivel')
-            ep['erro'] = True
-            return ep
-        else:
-            sim = True
-            nome = (link.get_attribute('href')).split('.')[-1]
-            link = link.get_attribute('href')
-            ep['ep']['ep_link'] = link
-            limpo = ep['nome'].split()
-            for i, palavra in enumerate(limpo):
-                limpo[i] = ''.join([l for l in palavra if l not in [':', '?', '°']])
-            limpo = ' '.join(limpo)
-            ep['nome'] = limpo
-            nome = '_'.join(ep['nome'].split())+'_'+'_'.join(ep['ep']['ep'].split())+'.'+nome
-            ep['ep']['nome'] = nome
-            ep['ep']['caminho'] = path+'_'.join(ep['nome'].split())+'\\'
-            c = dict()
-            cu = navegador.get_cookies()
-            for i in cu:
-                c[i['name']] = i['value']
-            ep['ep']['cookie'] = c
-            ep['erro'] = False
-    if sim:
-        verifica(ep)
-        baixaai.baixarar(ep)
-    return ep
+def gofile(anime):
+    api = 'https://api.gofile.io/contents/'
+    link = api+anime.ep.link.split('/')[-1]+'?wt=4fd6sg89d7s6'
+    cabeca = {'Authorization': 'Bearer 9EV9xTdiDoQL334CBpB60nPe8K2Rcwtc'}
+    r = requests.get(link, headers=cabeca)
+    resposta = dict(r.json())
+    if len(resposta['data']['children']) == 0:
+        anime.ep.erro = True
+        return anime
+    else:
+        id = resposta['data']['childrenIds'][0]
+        link = resposta['data']['children'][id]['link']
+        estensao = resposta['data']['children'][id]['name'].split('.')[1]
+        anime.ep.link = link
+        anime = tratar(anime, estensao)
+        verifica(anime)
+        baixaai.baixarar(anime.ep)
+        anime.ep.erro = False
+        return anime

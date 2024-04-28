@@ -150,48 +150,27 @@ while not sair:
                         break
                 if type(esco) == int:
                     animes = animes[esco]
-                    animes.ep()
+                    animes.eps()
                     animes.listar()
                     if type(animes.ep) == list:
                         copia = animes
                         for ep in animes.ep:
                             copia.ep = TC.baixar(ep, varios=True)
-                            copia.verificar()
                             copia.baixar()
                     else:
                         animes.ep = TC.baixar(animes.ep)
-                        animes.verificar()
                         animes.baixar()
     elif esco == 2:
         r = ani.listar()
-        if type(r) == dict:
-            if r['site'] == 'Sakura':
-                anime = Sakura.listar_episodios(r)
-                print('='*30)
-                for i, e in enumerate(anime['ep']):
-                    print(f'[{i}] {e["nome"]}')
-                while True:
-                    try:
-                        esco = int(input('Escolha qual episódio deseja baixar: '))
-                    except:
-                        print('Erro! Tente novamente')
-                    else:
-                        if esco >= 0 and esco < len(anime['ep']):
-                            break
-                        else:
-                            print('Erro! Opção inválida')
-                anime['ep'] = anime['ep'][esco]
-                Sakura.baixar(anime)
-        elif r.site == 'TC':
-            r.ep()
-            r.listar()
-            if type(r.ep) == list:
-                copia = r
-                for ep in r.ep:
-                    copia.ep = TC.baixar(ep, varios=True)
-                    copia.verificar()
-                    copia.baixar()
-            else:
-                r.ep = TC.baixar(r.ep)
-                r.verificar()
-                r.baixar()
+        if r != None:
+            if r.site == 'TC':
+                r.eps()
+                r.listar()
+                if type(r.ep) == list:
+                    copia = r
+                    for ep in r.ep:
+                        copia.ep = TC.baixar(ep, varios=True)
+                        copia.baixar()
+                else:
+                    r.ep = TC.baixar(r.ep)
+                    r.baixar()

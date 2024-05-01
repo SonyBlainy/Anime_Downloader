@@ -46,7 +46,7 @@ class Anime:
                 self.ep = [ep for ep in self.ep if self.ep.index(ep) in esco]
             else:
                 self.ep = None
-    def baixar(self):
+    def baixarep(self):
         if self.ep.server == None:
             print('Erro ao baixar')
         else:
@@ -68,7 +68,6 @@ class Anime:
                 self = gofile(self)
                 if not self.ep.erro:
                     pass
-        
 class Ep:
     def __init__(self, ep):
         self.nome = ep['ep']
@@ -216,7 +215,6 @@ def verifica(anime):
     if not os.path.isdir(save+nome):
         os.mkdir(save+nome)
         with open(save+nome+'\\'+'linkzinho.txt', 'wb') as arquivo:
-            anime.ep = None
             pickle.dump(anime, arquivo)
 
 def gofile(anime):

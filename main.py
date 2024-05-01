@@ -3,8 +3,6 @@ logging.basicConfig(filename='log.log', filemode='w', level=logging.CRITICAL)
 from fenix import animes as ani
 from sakura import Sakura
 from tc import TC
-from drivee import googledrive as gd
-from drivee import trat
 sair = False
 
 while not sair:
@@ -40,15 +38,14 @@ while not sair:
                 else:
                     print('Erro! Opção inválida')
         if esco == 1:
-            resul = ani.pesquisa()
+            nome = str(input('Digite o nome do anime: '))
+            anime = ani.pesquisa(nome)
             print('='*30)
-            if len(resul) == 0:
+            if len(anime) == 0:
                 print('Nenhum anime encontrado')
             else:
-                print(f'Foram encontrados {len(resul)} resultados para sua busca')
-                print('='*30)
-                for i, r in enumerate(resul):
-                    print(f'[{i}] {r["nome"]}')
+                for i, r in enumerate(anime):
+                    print(f'[{i}] {r.nome}')
                 while True:
                     escolha = str(input('Escolha um anime ou digite sair: '))
                     try:
@@ -61,32 +58,18 @@ while not sair:
                     else:
                         break
                 if type(escolha) == int:
-                    eps = ani.eps(resul[escolha])
-                    print('='*30)
-                    print(f'Foram encontrados {len(eps)} episódios para o anime {resul[escolha]["nome"]}')
-                    for i, e in enumerate(eps):
-                        print(f'{e["numero"]}')
-                    while True:
-                        escolha = str(input('Escolha o episódio que deseja baixar ou digite sair: '))
-                        try:
-                            escolha = int(escolha)
-                        except:
-                            if '-' in escolha:
-                                escolha = [int(e) for e in escolha.split('-') if int(e) > 0 and int(e) <= len(eps)]
-                                break
-                            else:
-                                if escolha.upper() == 'SAIR':
-                                    break
-                                else:
-                                    print('Erro! Tente novamente')
-                        else:
-                            break
-                    if type(escolha) == int:
-                        ani.baixar(eps[escolha-1])
+                    anime = ani.eps(anime[escolha])
+                    anime.listar()
+                    if type(anime.ep) == list:
+                        anime.tratar()
+                        copia = anime
+                        for ep in anime.ep:
+                            copia.ep = ep
+                            ani.baixar(copia)
                     else:
-                        if '-' in escolha:
-                            for e in escolha:
-                                ani.baixar(eps[e-1])
+                        anime.tratar()
+                        ani.baixar(anime)
+
         elif esco == 2:
             nome = str(input('Digite o nome do anime: '))
             resul = Sakura.pesquisar_anime(nome)
@@ -156,10 +139,10 @@ while not sair:
                         copia = animes
                         for ep in animes.ep:
                             copia.ep = TC.baixar(ep, varios=True)
-                            copia.baixar()
+                            copia.baixarep()
                     else:
                         animes.ep = TC.baixar(animes.ep)
-                        animes.baixar()
+                        animes.baixarep()
     elif esco == 2:
         r = ani.listar()
         if r != None:
@@ -170,7 +153,19 @@ while not sair:
                     copia = r
                     for ep in r.ep:
                         copia.ep = TC.baixar(ep, varios=True)
-                        copia.baixar()
+                        copia.baixarep()
                 else:
                     r.ep = TC.baixar(r.ep)
-                    r.baixar()
+                    r.baixarep()
+            elif r.site == 'Fenix':
+                anime = ani.eps(r)
+                anime.listar()
+                if type(anime.ep) == list:
+                    anime.tratar()
+                    copia = anime
+                    for ep in anime.ep:
+                        copia.ep = ep
+                        ani.baixar(copia)
+                else:
+                    anime.tratar()
+                    ani.baixar(anime)

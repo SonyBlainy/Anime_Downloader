@@ -1,4 +1,6 @@
 from selenium import webdriver
+import requests
+from lxml.html import fromstring
 import os
 import pickle
 from ouo_bypass import ouo_bypass
@@ -19,37 +21,47 @@ ops.add_argument('--disable-popup-blocking')
 server = Service()
 
 
-def pesquisar_anime(anime):
-    with webdriver.Firefox(service=server, options=ops) as navegador:
-        navegador.get('https://www.sakuraanimes.com')
-        acoes = ActionChains(navegador)
-        mimir(1)
-        fecha = navegador.find_elements(By.CLASS_NAME, 'm-0')[3]
-        fecha = fecha.find_element(By.CLASS_NAME, 'close')
-        fecha.click()
-        bara = navegador.find_element(By.CLASS_NAME, 'mb-2')
-        acoes.move_to_element(bara).click(bara).send_keys(anime).perform()
-        mimir(2)
-        busca = navegador.find_element(By.ID, 'myUL')
-        acoes.move_to_element(busca).perform()
-        busca = busca.find_elements(By.TAG_NAME, 'li')
-        animes = list()
-        for a in busca:
-            if a.find_element(By.TAG_NAME, 'small').text == 'Mangás':
-                pass
-            else:
-                data = dict()
-                link = a.find_element(By.TAG_NAME, 'a').get_attribute('href')
-                nome = a.find_element(By.TAG_NAME, 'a').text
-                nome = nome.split()
-                if nome[-1] != 'Legendados' and nome[-1] != 'Actions':
-                    nome = ' '.join(nome[:-2])
+class Anime:
+    def __init__(self, nome, link):
+        self.nome = nome
+        self.link = link
+    def eps(self):
+        pass
+    def listar(self):
+        print('='*30)
+        for i, ep in enumerate(self.ep):
+            print(f'[{i}] {ep.nome}')
+        while True:
+            try:
+                esco = str(input('Escolha qual episódio deseja baixar: '))
+                esco = int(esco)
+            except:
+                if esco.upper() == 'SAIR':
+                    break
+                elif '-' in esco:
+                    break
                 else:
-                    nome = ' '.join(nome[:-3])
-                data['link'] = link
-                data['nome'] = nome
-                animes.append(data)
-    return animes
+                    print('Erro! Tente novamente')
+            else:
+                if esco >= 0 and esco <= len(self.ep)-1:
+                    break
+                else:
+                    print('Erro! Tente novamente')
+
+def pesquisar_anime(anime):
+    api = 'https://fenixfansub.net/wp-admin/admin-ajax.php'
+    data = {'action': 'ajaxsearchpro_search', 'aspp': anime, 'asid': 2, 'asp_inst_id': '2_1'}
+    r = requests.post(api, data)
+    print(r.apparent_encoding)
+    r = r.content.decode('utf-8')
+    r = fromstring(r)
+    animes = r.find_class('asp_content')
+    for anime in animes:
+        link = anime.xpath('.//a')[1]
+        nome = link.text.strip()
+        link = link.get('href')
+        print(nome)
+        print(link)
     
 def listar_episodios(anime):
     with webdriver.Firefox(service=server, options=ops) as navegador:

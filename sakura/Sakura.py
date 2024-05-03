@@ -1,13 +1,15 @@
 from selenium import webdriver
 import requests
 from lxml.html import fromstring
+from drivee.trat import tratar
+from tc.TC import verifica
+from fenix import baixando
 import os
 import pickle
 from ouo_bypass import ouo_bypass
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
-from selenium.webdriver.common.action_chains import ActionChains
 from time import sleep as mimir
 from sakura.baixarep import baixarar
 
@@ -26,7 +28,7 @@ class Anime:
         self.nome = nome
         self.link = link
     def eps(self):
-        pass
+        self.ep = listar_episodios(self)
     def listar(self):
         print('='*30)
         for i, ep in enumerate(self.ep):
@@ -47,106 +49,85 @@ class Anime:
                     break
                 else:
                     print('Erro! Tente novamente')
+        if type(esco) == int:
+            self.ep = self.ep[esco]
+            self.trat()
+            verifica(self)
+        else:
+            self.ep = [self.ep[int(e)] for e in esco.split('-')]
+    def trat(self):
+        self = tratar(self, self.ep.estensao)
+        verifica(self)
+            
+class Ep:
+    def __init__(self, nome, link, estensao, server):
+        self.nome = nome
+        self.link = link
+        self.estensao = estensao
+        self.server = server
+
 
 def pesquisar_anime(anime):
-    api = 'https://fenixfansub.net/wp-admin/admin-ajax.php'
-    data = {'action': 'ajaxsearchpro_search', 'aspp': anime, 'asid': 2, 'asp_inst_id': '2_1'}
-    r = requests.post(api, data)
-    print(r.apparent_encoding)
-    r = r.content.decode('utf-8')
-    r = fromstring(r)
-    animes = r.find_class('asp_content')
-    for anime in animes:
-        link = anime.xpath('.//a')[1]
-        nome = link.text.strip()
-        link = link.get('href')
-        print(nome)
-        print(link)
+    with webdriver.Firefox(ops, server) as navegador:
+        navegador.get('https://www.sakuraanimes.com')
+        fecha = navegador.find_elements(By.CLASS_NAME, 'close')[-1]
+        navegador.execute_script('arguments[0].click()', fecha)
+        pesquisa = navegador.find_element(By.CLASS_NAME, 'mb-2')
+        pesquisa.send_keys(anime)
+        mimir(2)
+        animes = navegador.find_element(value='myUL').find_elements(By.TAG_NAME, 'li')
+        lista = []
+        for anime in animes:
+            link = anime.find_element(By.TAG_NAME, 'a')
+            nome = link.text.strip()
+            nome = nome.split('-')[0].strip()
+            link = link.get_attribute('href')
+            a = Anime(nome, link)
+            lista.append(a)
+    return lista
     
 def listar_episodios(anime):
-    with webdriver.Firefox(service=server, options=ops) as navegador:
-        navegador.get(anime['link'])
-        mimir(1)
-        fecha = navegador.find_elements(By.CLASS_NAME, 'm-0')[-1]
-        fecha = fecha.find_element(By.CLASS_NAME, 'close')
-        fecha.click()
-        hd = navegador.find_elements(By.TAG_NAME, 'ul')
-        for i in hd:
-            if i.get_attribute('role') == 'tablist':
-                hd = i
-                break
-        hd = hd.find_elements(By.TAG_NAME, 'li')
-        for ind, i in enumerate(hd):
-            print(f'[{ind}] {i.find_element(By.TAG_NAME, "a").text}')
-        while True:
-            try:
-                esco = int(input('Escolha qual qualidade deseja baixar: '))
-            except:
-                print('Erro! Tente novamente')
-            else:
-                if esco >= 0 and esco < len(hd):
-                    break
-        hd = hd[esco].find_element(By.TAG_NAME, 'a')
-        navegador.execute_script('arguments[0].scrollIntoView();', hd)
-        navegador.execute_script('arguments[0].click();', hd)
-        mimir(1.5)
-        links = navegador.find_elements(By.CLASS_NAME, 'table-dark')[-1].find_element(By.TAG_NAME, 'td').find_elements(By.TAG_NAME, 'a')
-        servers = [l.text.split()[0] for l in links]
-        if 'Mediafire' in servers:
-            link = links[servers.index('Mediafire')].get_attribute('href')
-            navegador.get(link)
-            link = navegador.find_element(By.CLASS_NAME, 'w-full').find_element(By.TAG_NAME, 'a')
-            while True:
-                try:
-                    link = ouo_bypass(link.get_attribute('href'))['bypassed_link']
-                except KeyboardInterrupt:
-                    exit()
-                except Exception as erro:
-                    print('Erro!')
-                    print(f'{erro}')
-                else:
-                    break
-            try:
-                navegador.get(link)
-            except:
-                print(link)
-            anime['link'] = link
-            mimir(8)
-            eps = navegador.find_element(value='main_list')
-            eps = eps.find_elements(By.TAG_NAME, 'li')
-            episodios = list()
-            for e in eps:
-                data = dict()
-                link = e.find_element(By.TAG_NAME, 'a').get_attribute('href')
-                nome = e.find_element(By.CLASS_NAME, 'item-name').text
-                data['link'] = link
-                data['nome'] = nome
-                data['plataforma'] = 'Mediafire'
-                episodios.append(data)
-    anime['ep'] = mediafire(episodios)
-    return anime
+    api = 'https://www.mediafire.com/api/1.4/folder/get_content.php'
+    r = requests.get(anime.link)
+    r = fromstring(r.content)
+    r = r.find_class('tab-content')[0]
+    if r.find('.div[@id="fhd"]').find('.table') != None:
+        link = r.find('.div[@id="fhd"]').find('.table').find('.//td')
+    else:
+        link = r.find('.div[@id="hd"]').find('.table').find('.//td')
+    link = link.xpath('a')
+    for l in link:
+        texto = l.xpath('text()')[1].strip()
+        if texto == 'Mediafire':
+            link = l.get('href')
+            break
+    link = fromstring(requests.get(link).content)
+    link = link.find_class('w-full')[0]
+    link = link.find('a').get('href')
+    link = ouo_bypass(link)['bypassed_link']
+    id = link.split('/')[4]
+    para = {'content_type': 'files', 'filter': 'all', 'order_by': 'name', 'order_direction': 'asc', 'chunck': 1,
+            'version': 1.5, 'folder_key': id, 'response_format': 'json'}
+    r = requests.get(api, para)
+    resposta = dict(r.json())
+    eps = resposta['response']['folder_content']['files']
+    resposta = []
+    for e in eps:
+        link = e['links']['normal_download']
+        if e['filename'].split('_')[-2] == 'Final':
+            nome = 'Episodio'+f'_{'_'.join(e["filename"].split("_")[-3:-1])}'
+        else:
+            nome = 'Episodio'+f'_{e["filename"].split("_")[-2]}'
+        estensao = e['filename'].split('.')[-1]
+        server = 'Mediafire'
+        ep = Ep(nome, link, estensao, server)
+        resposta.append(ep)
+    return resposta
 
-def baixar(anime):
-    if not os.path.isdir(save+'_'.join(anime['nome'].split())):
-        os.mkdir(save+'_'.join(anime['nome'].split()))
-        with open(save+'_'.join(anime['nome'].split())+'\\linkzinho.txt', 'wb') as arquivo:
-            copia = anime.copy()
-            copia.pop('ep')
-            pickle.dump(copia, arquivo)
-    if anime['ep']['plataforma'] == 'Mediafire':
-        if not os.path.isdir(path+'_'.join(anime['nome'].split())):
-            os.mkdir(path+'_'.join(anime['nome'].split()))
-        caminho = path+'_'.join(anime['nome'].split())+'\\'
-        baixarar(anime['ep']['link'], anime['ep']['nome'], caminho, anime['ep']['plataforma'])
-      
-def mediafire(eps):
-    with webdriver.Firefox(service=server, options=ops) as navegador:
-        resul = []
-        for ep in eps:
-            navegador.get(ep['link'])
-            mimir(3)
-            link = navegador.find_element(value='download_link').find_elements(By.TAG_NAME, 'a')[1]
-            link = link.get_attribute('href')
-            ep['link'] = link
-            resul.append(ep)
-    return resul
+def mediafire(anime):
+    r = fromstring(requests.get(anime.ep.link).content)
+    link = r.find_class('download_link')[0]
+    link = link.xpath('a')[1]
+    anime.ep.link = link.get('href')
+    baixando.baixarar(anime)
+    

@@ -13,7 +13,7 @@ def tratar(anime, estensao=None):
         limpo.append(''.join([letra for letra in palavra if letra not in [':', '°', '?', '-']]))
     limpo = ' '.join(limpo)
     anime.nome = limpo
-    if anime.ep.server == 'Gofile':
+    if anime.ep.server == 'Gofile' or anime.ep.server == 'Mediafire':
         anime.ep.nome = '_'.join(anime.nome.split())+'_'+'_'.join(anime.ep.nome.split())+f'.{estensao}'
         anime.ep.caminho = path+'_'.join(anime.nome.split())
         anime.ep.erro = False

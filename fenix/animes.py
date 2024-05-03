@@ -3,7 +3,6 @@ from lxml.html import fromstring
 import pickle
 from tc.TC import verifica
 from fenix.baixando import baixarar
-from fenix.renomear import reno
 from fenix.rarzinho import descom
 import os
 

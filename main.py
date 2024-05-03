@@ -77,9 +77,8 @@ while not sair:
                 print('Nenhum anime encontrado')
             else:
                 print('='*30)
-                print(f'Foram encontrados {len(resul)} resultados para sua busca')
                 for i, a in enumerate(resul):
-                    print(f'[{i}] {a["nome"]}')
+                    print(f'[{i}] {a.nome}')
                 while True:
                     esco = str(input('Escolha o anime que deseja baixar ou digite sair: '))
                     try:
@@ -95,22 +94,18 @@ while not sair:
                         else:
                             print('Erro! Opção inválida')
                 if type(esco) == int:
-                    anime = Sakura.listar_episodios(resul[esco])
-                    print('='*30)
-                    for i, e in enumerate(anime['ep']):
-                        print(f'[{i}] {e["nome"]}')
-                    while True:
-                        try:
-                            esco = int(input('Escolha qual episódio deseja baixar: '))
-                        except:
-                            print('Erro! Tente novamente')
-                        else:
-                            if esco >= 0 and esco < len(anime['ep']):
-                                break
-                            else:
-                                print('Erro! Opção inválida')
-                    anime['ep'] = anime['ep'][esco]
-                    Sakura.baixar(anime)
+                    anime = resul[esco]
+                    anime.eps()
+                    anime.listar()
+                    if type(anime.ep) == list:
+                        copia = anime
+                        for ep in anime.ep:
+                            copia.ep = ep
+                            copia.trat()
+                            Sakura.mediafire(copia)
+                    else:
+                        Sakura.mediafire(anime)
+                    
         elif esco == 3:
             nome = str(input('Digite o nome do anime: '))
             animes = TC.pesquisar(nome)
@@ -169,3 +164,15 @@ while not sair:
                 else:
                     anime.tratar()
                     ani.baixar(anime)
+            elif r.site == 'Sakura':
+                anime = r
+                anime.eps()
+                anime.listar()
+                if type(anime.ep) == list:
+                    copia = anime
+                    for ep in anime.ep:
+                        copia.ep = ep
+                        copia.trat()
+                        Sakura.mediafire(copia)
+                else:
+                    Sakura.mediafire(anime)

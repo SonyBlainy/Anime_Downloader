@@ -2,8 +2,8 @@ from selenium import webdriver
 import requests
 from lxml.html import fromstring
 from drivee.trat import tratar
-from tc.TC import verifica
-from fenix import baixando
+from fera.animes_geral import verifica
+from fera import baixando
 import os
 import pickle
 from ouo_bypass import ouo_bypass
@@ -13,8 +13,6 @@ from selenium.webdriver.firefox.service import Service
 from time import sleep as mimir
 from sakura.baixarep import baixarar
 
-path = f"C:\\Users\\{os.getlogin()}\\Desktop\\animes\\"
-save = "C:\\Users\\Micro\\AppData\\Local\\Anime_downloader\\"
 ops = Options()
 ops.add_argument('--blink-settings=imagesEnabled=false')
 ops.add_argument('--headless')
@@ -57,8 +55,7 @@ class Anime:
             self.ep = [self.ep[int(e)] for e in esco.split('-')]
     def trat(self):
         self = tratar(self, self.ep.estensao)
-        verifica(self)
-            
+        verifica(self)    
 class Ep:
     def __init__(self, nome, link, estensao, server):
         self.nome = nome
@@ -115,7 +112,7 @@ def listar_episodios(anime):
     for e in eps:
         link = e['links']['normal_download']
         if e['filename'].split('_')[-2] == 'Final':
-            nome = 'Episodio'+f'_{'_'.join(e["filename"].split("_")[-3:-1])}'
+            nome = 'Episodio'+f'_{"_".join(e["filename"].split("_")[-3:-1])}'
         else:
             nome = 'Episodio'+f'_{e["filename"].split("_")[-2]}'
         estensao = e['filename'].split('.')[-1]

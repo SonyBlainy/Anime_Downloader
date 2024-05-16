@@ -1,8 +1,27 @@
+import platform
+import os
+if platform.system() == 'Linux':
+    if not os.path.isdir('/root/animes'):
+        os.mkdir('/root/animes')
+    if not os.path.isdir('/root/.save'):
+        os.mkdir('/root/.save')
+    os.environ['caminho'] = '/root/animes'
+    os.environ['save'] = '/root/.save'
+    os.environ['pc'] = 'Linux'
+else:
+    if not os.path.isdir(rf'C:\Users\{os.getlogin()}\Desktop\Animes'):
+        os.mkdir(rf'C:\Users\{os.getlogin()}\Desktop\Animes')
+    if not os.path.isdir(os.path.expandvars(r'%LOCALAPPDATA%\Anime_downloader')):
+        os.mkdir(os.path.expandvars(r'%LOCALAPPDATA%\Anime_downloader'))
+    os.environ['pc'] = 'Windows'
+    os.environ['save'] = os.path.expandvars(r'%LOCALAPPDATA%\Anime_downloader')
+    os.environ['caminho'] = rf'C:\Users\{os.getlogin()}\Desktop\Animes'
 import logging
 logging.basicConfig(filename='log.log', filemode='w', level=logging.CRITICAL)
-from fenix import animes as ani
 from sakura import Sakura
-from tc import TC
+from fire import fire
+from fera import animes_geral
+
 sair = False
 
 while not sair:
@@ -24,9 +43,9 @@ while not sair:
         sair = True
     elif esco == 1:
         print('='*30)
-        print('[1] Fenix Fansub')
+        print('[1] Animes Fire')
         print('[2] Sakura')
-        print('[3] AnimesTC')
+        print('[3] Animes Online')
         while True:
             try:
                 esco = int(input('Escolha em site deseja pesquisar: '))
@@ -39,7 +58,7 @@ while not sair:
                     print('Erro! Opção inválida')
         if esco == 1:
             nome = str(input('Digite o nome do anime: '))
-            anime = ani.pesquisa(nome)
+            anime = fire.pesquisa(nome)
             print('='*30)
             if len(anime) == 0:
                 print('Nenhum anime encontrado')
@@ -58,7 +77,7 @@ while not sair:
                     else:
                         break
                 if type(escolha) == int:
-                    anime = ani.eps(anime[escolha])
+                    anime = fire.episodios(anime[escolha])
                     anime.listar()
                     if type(anime.ep) == list:
                         anime.tratar()
@@ -67,9 +86,7 @@ while not sair:
                             copia.ep = ep
                             ani.baixar(copia)
                     else:
-                        anime.tratar()
-                        ani.baixar(anime)
-
+                        anime.trat()
         elif esco == 2:
             nome = str(input('Digite o nome do anime: '))
             resul = Sakura.pesquisar_anime(nome)
@@ -105,7 +122,6 @@ while not sair:
                             Sakura.mediafire(copia)
                     else:
                         Sakura.mediafire(anime)
-                    
         elif esco == 3:
             nome = str(input('Digite o nome do anime: '))
             animes = TC.pesquisar(nome)
@@ -139,7 +155,7 @@ while not sair:
                         animes.ep = TC.baixar(animes.ep)
                         animes.baixarep()
     elif esco == 2:
-        r = ani.listar()
+        r = animes_geral.listar()
         if r != None:
             if r.site == 'TC':
                 r.eps()

@@ -2,8 +2,8 @@ import requests
 from lxml.html import fromstring
 import os
 
-path = f"C:\\Users\\{os.getlogin()}\\Desktop\\animes\\"
-save = "C:\\Users\\Micro\\AppData\\Local\\Anime_downloader\\"
+path = os.getenv('caminho')
+save = os.getenv('save')
 
 def tratar(anime, estensao=None):
     nome = anime.nome
@@ -13,9 +13,13 @@ def tratar(anime, estensao=None):
         limpo.append(''.join([letra for letra in palavra if letra not in [':', '°', '?', '-']]))
     limpo = ' '.join(limpo)
     anime.nome = limpo
-    if anime.ep.server == 'Gofile' or anime.ep.server == 'Mediafire':
+    servers = ['Mediafire', 'Fire']
+    if anime.ep.server in servers:
         anime.ep.nome = '_'.join(anime.nome.split())+'_'+'_'.join(anime.ep.nome.split())+f'.{estensao}'
-        anime.ep.caminho = path+'_'.join(anime.nome.split())
+        if os.getenv('pc') == 'Linux':
+            anime.ep.caminho = path+'/'+'_'.join(anime.nome.split())
+        else:
+            anime.ep.caminho = path+'\\'+'_'.join(anime.nome.split())
         anime.ep.erro = False
         return anime
     else:

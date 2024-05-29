@@ -3,7 +3,7 @@ import shutil
 from tqdm.auto import tqdm
 
 def baixarar(anime):
-    if anime.ep.server == 'Mediafire':
+    if anime.ep.server == 'Mediafire' or anime.ep.server == 'online':
         b = f'{anime.ep.nome}'
     else:
         b = f'{anime.ep.nome}.rar'

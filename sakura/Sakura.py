@@ -8,17 +8,18 @@ import os
 import pickle
 from ouo_bypass import ouo_bypass
 from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.service import Service
+from selenium.webdriver import FirefoxOptions
+from selenium.webdriver import FirefoxService
 from time import sleep as mimir
 from sakura.baixarep import baixarar
 
-ops = Options()
+ops = FirefoxOptions()
+ops.log.level = 'trace'
 ops.add_argument('--blink-settings=imagesEnabled=false')
 ops.add_argument('--headless')
 ops.add_argument('--window-size=1366,768')
 ops.add_argument('--disable-popup-blocking')
-server = Service()
+server = FirefoxService()
 
 
 class Anime:
@@ -50,12 +51,11 @@ class Anime:
         if type(esco) == int:
             self.ep = self.ep[esco]
             self.trat()
-            verifica(self)
         else:
             self.ep = [self.ep[int(e)] for e in esco.split('-')]
     def trat(self):
         self = tratar(self, self.ep.estensao)
-        verifica(self)    
+        verifica(self)
 class Ep:
     def __init__(self, nome, link, estensao, server):
         self.nome = nome
@@ -115,7 +115,7 @@ def listar_episodios(anime):
             nome = 'Episodio'+f'_{"_".join(e["filename"].split("_")[-3:-1])}'
         else:
             nome = 'Episodio'+f'_{e["filename"].split("_")[-2]}'
-        estensao = e['filename'].split('.')[-1]
+        estensao ='.'+e['filename'].split('.')[-1]
         server = 'Mediafire'
         ep = Ep(nome, link, estensao, server)
         resposta.append(ep)

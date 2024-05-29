@@ -13,13 +13,13 @@ def tratar(anime, estensao=None):
         limpo.append(''.join([letra for letra in palavra if letra not in [':', '°', '?', '-']]))
     limpo = ' '.join(limpo)
     anime.nome = limpo
-    servers = ['Mediafire', 'Fire']
+    servers = ['Mediafire', 'Fire', 'online']
     if anime.ep.server in servers:
-        anime.ep.nome = '_'.join(anime.nome.split())+'_'+'_'.join(anime.ep.nome.split())+f'.{estensao}'
+        anime.ep.nome = '_'.join(anime.nome.split())+'_'+'_'.join(anime.ep.nome.split())+estensao
         if os.getenv('pc') == 'Linux':
-            anime.ep.caminho = path+'/'+'_'.join(anime.nome.split())
+            anime.ep.caminho = path+'/'+'_'.join(anime.nome.split())+'/'
         else:
-            anime.ep.caminho = path+'\\'+'_'.join(anime.nome.split())
+            anime.ep.caminho = path+'\\'+'_'.join(anime.nome.split())+'\\'
         anime.ep.erro = False
         return anime
     else:

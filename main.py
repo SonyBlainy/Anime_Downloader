@@ -17,10 +17,12 @@ else:
     os.environ['save'] = os.path.expandvars(r'%LOCALAPPDATA%\Anime_downloader')
     os.environ['caminho'] = rf'C:\Users\{os.getlogin()}\Desktop\Animes'
 import logging
-logging.basicConfig(filename='log.log', filemode='w', level=logging.CRITICAL)
+logging.basicConfig(filename='log.log', filemode='w', level=logging.DEBUG)
 from sakura import Sakura
 from fire import fire
 from fera import animes_geral
+from fera import baixando
+from online import animes_online
 
 sair = False
 
@@ -84,9 +86,8 @@ while not sair:
                         copia = anime
                         for ep in anime.ep:
                             copia.ep = ep
-                            ani.baixar(copia)
                     else:
-                        anime.trat()
+                        fire.baixar(anime)
         elif esco == 2:
             nome = str(input('Digite o nome do anime: '))
             resul = Sakura.pesquisar_anime(nome)
@@ -124,7 +125,7 @@ while not sair:
                         Sakura.mediafire(anime)
         elif esco == 3:
             nome = str(input('Digite o nome do anime: '))
-            animes = TC.pesquisar(nome)
+            animes = animes_online.pesquisar(nome)
             if len(animes) == 0:
                 print('Nenhum anime encontrado')
             else:
@@ -143,17 +144,16 @@ while not sair:
                     else:
                         break
                 if type(esco) == int:
-                    animes = animes[esco]
-                    animes.eps()
-                    animes.listar()
-                    if type(animes.ep) == list:
+                    anime = animes[esco]
+                    anime = animes_online.episodios(anime)
+                    anime.listar()
+                    if type(anime.ep) == list:
                         copia = animes
                         for ep in animes.ep:
                             copia.ep = TC.baixar(ep, varios=True)
                             copia.baixarep()
                     else:
-                        animes.ep = TC.baixar(animes.ep)
-                        animes.baixarep()
+                        baixando.baixarar(anime)
     elif esco == 2:
         r = animes_geral.listar()
         if r != None:

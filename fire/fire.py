@@ -1,6 +1,7 @@
 import os
 import requests
 from sakura.Sakura import Anime, Ep
+from sakura.baixarep import baixarar as baixando
 from lxml.html import fromstring
 
 def pesquisa(anime: str) -> list:
@@ -38,3 +39,6 @@ def episodios(anime: Anime) -> Anime:
         lista.append(Ep(nome, link, est, 'Fire'))
     anime.ep = lista
     return anime
+
+def baixar(anime: Anime) -> None:
+    baixando(anime.ep.link, anime.ep.nome, anime.ep.caminho)

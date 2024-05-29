@@ -21,35 +21,67 @@ def listar():
         if esc == 'SAIR':
             break
         else:
-            if caminho.split('\\')[-1] == esc:
-                print('='*30)
-                for i, a in enumerate(arquivo):
-                    print(f'[{i}] {a}')
-                while True:
-                    esc = str(input('Escolha um episódio, digite sair ou baixar: '))
-                    try:
-                        esc = int(esc)
-                    except:
-                        if esc.upper() == 'SAIR':
-                            break
-                        elif esc.upper() == 'BAIXAR':
-                            nome = caminho.split('\\')[-1]
-                            try:
-                                with open(save+nome+'\\'+'linkzinho.txt', 'rb') as arquivo:
-                                    dados = pickle.load(arquivo)
-                            except:
-                                print('Erro! Arquivo não existe, baixe um episodio do anime para criar')
-                            else:
-                                if dados.link.split('.')[1] == 'animestc':
-                                    dados.site = 'TC'
-                                elif 'sakuraanimes' in dados.link:
-                                    dados.site = 'Sakura'
-                                elif 'fenixfansub' in dados.link:
-                                    dados.site = 'Fenix'
-                                return dados
-                    else:
-                        if 0 <= esc < len(arquivo):
-                            os.popen(f'{caminho}\\{arquivo[esc]}')
+            if os.getenv('pc') != 'Linux':
+                if caminho.split('\\')[-1] == esc:
+                    print('='*30)
+                    for i, a in enumerate(arquivo):
+                        print(f'[{i}] {a}')
+                    while True:
+                        esc = str(input('Escolha um episódio, digite sair ou baixar: '))
+                        try:
+                            esc = int(esc)
+                        except:
+                            if esc.upper() == 'SAIR':
+                                break
+                            elif esc.upper() == 'BAIXAR':
+                                nome = caminho.split('\\')[-1]
+                                try:
+                                    with open(save+'\\'+nome+'\\'+'linkzinho.txt', 'rb') as arquivo:
+                                        dados = pickle.load(arquivo)
+                                except:
+                                    print('Erro! Arquivo não existe, baixe um episodio do anime para criar')
+                                else:
+                                    if 'animefire' in dados.link:
+                                        dados.site = 'Fire'
+                                    elif 'sakuraanimes' in dados.link:
+                                        dados.site = 'Sakura'
+                                    elif 'fenixfansub' in dados.link:
+                                        dados.site = 'Fenix'
+                                    return dados
+                        else:
+                            if 0 <= esc < len(arquivo):
+                                os.popen(f'{caminho}\\{arquivo[esc]}')
+            else:
+                if caminho.split('/')[-1] == esc:
+                    print('='*30)
+                    for i, a in enumerate(arquivo):
+                        print(f'[{i}] {a}')
+                    while True:
+                        esc = str(input('Escolha um episódio, digite sair ou baixar: '))
+                        try:
+                            esc = int(esc)
+                        except:
+                            if esc.upper() == 'SAIR':
+                                break
+                            elif esc.upper() == 'BAIXAR':
+                                nome = caminho.split('/')[-1]
+                                try:
+                                    with open(save+'/'+nome+'/'+'linkzinho.txt', 'rb') as arquivo:
+                                        dados = pickle.load(arquivo)
+                                except:
+                                    print('Erro! Arquivo não existe, baixe um episodio do anime para criar')
+                                else:
+                                    if 'animefire' in dados.link:
+                                        dados.site = 'Fire'
+                                    elif 'sakuraanimes' in dados.link:
+                                        dados.site = 'Sakura'
+                                    elif 'fenixfansub' in dados.link:
+                                        dados.site = 'Fenix'
+                                    return dados
+                        else:
+                            if 0 <= esc < len(arquivo):
+                                os.popen(f'vlc-wrapper {caminho}\\{arquivo[esc]}')
+
 
 def verifica(anime) -> None:
     nome = '_'.join(anime.nome.split())

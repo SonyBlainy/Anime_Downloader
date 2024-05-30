@@ -168,18 +168,16 @@ while not sair:
                 else:
                     r.ep = TC.baixar(r.ep)
                     r.baixarep()
-            elif r.site == 'Fenix':
-                anime = ani.eps(r)
+            elif r.site == 'Online':
+                anime = animes_online.episodios(r)
                 anime.listar()
                 if type(anime.ep) == list:
-                    anime.tratar()
                     copia = anime
                     for ep in anime.ep:
                         copia.ep = ep
-                        ani.baixar(copia)
+                        baixando.baixarar(anime)
                 else:
-                    anime.tratar()
-                    ani.baixar(anime)
+                    baixando.baixarar(anime)
             elif r.site == 'Sakura':
                 anime = r
                 anime.eps()

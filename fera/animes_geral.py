@@ -75,8 +75,8 @@ def listar():
                                         dados.site = 'Fire'
                                     elif 'sakuraanimes' in dados.link:
                                         dados.site = 'Sakura'
-                                    elif 'fenixfansub' in dados.link:
-                                        dados.site = 'Fenix'
+                                    elif 'animesonline' in dados.link:
+                                        dados.site = 'Online'
                                     return dados
                         else:
                             if 0 <= esc < len(arquivo):

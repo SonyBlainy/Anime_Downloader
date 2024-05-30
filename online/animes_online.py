@@ -36,8 +36,12 @@ def episodios(anime: Anime) -> Anime:
                 var = var.split('var')[2].split('(')[1].split(')')[0]
                 var = var.split('[1080p]')[1].split('"')[0][:-1]
                 break
-        ep = Ep(nome, var, '.'+var.split('.')[-1], 'online')
-        lista.append(ep)
+        try:
+            ep = Ep(nome, var, '.'+var.split('.')[-1], 'online')
+        except:
+            pass
+        else:
+            lista.append(ep)
     anime.ep = lista
     return anime
 

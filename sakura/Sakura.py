@@ -111,10 +111,16 @@ def listar_episodios(anime):
     resposta = []
     for e in eps:
         link = e['links']['normal_download']
-        if e['filename'].split('_')[-2] == 'Final':
-            nome = 'Episodio'+f'_{"_".join(e["filename"].split("_")[-3:-1])}'
+        if len(e['filename'].split('_')[-1].split()) == 1:
+            if e['filename'].split('_')[-2] == 'Final':
+                nome = 'Episodio'+'_'+'_'.join(e['filename'].split('_')[-3:-1])
+            else:
+                nome = 'Episodio'+'_'+e['filename'].split('_')[-2]
         else:
-            nome = 'Episodio'+f'_{e["filename"].split("_")[-2]}'
+            if e['filename'].split('_')[-2] == 'Final':
+                nome = 'Final'
+            else:
+                nome = 'Episodio'+f'_{e["filename"].split("_")[-1].split()[0]}'
         estensao ='.'+e['filename'].split('.')[-1]
         server = 'Mediafire'
         ep = Ep(nome, link, estensao, server)

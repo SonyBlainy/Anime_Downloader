@@ -1,12 +1,12 @@
 import platform
 import os
 if platform.system() == 'Linux':
-    if not os.path.isdir('/root/animes'):
-        os.mkdir('/root/animes')
-    if not os.path.isdir('/root/.save'):
-        os.mkdir('/root/.save')
-    os.environ['caminho'] = '/root/animes'
-    os.environ['save'] = '/root/.save'
+    if not os.path.isdir('/home/sony/animes'):
+        os.mkdir('/home/sony/animes')
+    if not os.path.isdir('/home/sony/.save'):
+        os.mkdir('/home/sony/.save')
+    os.environ['caminho'] = '/home/sony/animes'
+    os.environ['save'] = '/home/sony/.save'
     os.environ['pc'] = 'Linux'
 else:
     if not os.path.isdir(rf'C:\Users\{os.getlogin()}\Desktop\Animes'):
@@ -157,18 +157,7 @@ while not sair:
     elif esco == 2:
         r = animes_geral.listar()
         if r != None:
-            if r.site == 'TC':
-                r.eps()
-                r.listar()
-                if type(r.ep) == list:
-                    copia = r
-                    for ep in r.ep:
-                        copia.ep = TC.baixar(ep, varios=True)
-                        copia.baixarep()
-                else:
-                    r.ep = TC.baixar(r.ep)
-                    r.baixarep()
-            elif r.site == 'Online':
+            if r.site == 'Online':
                 anime = animes_online.episodios(r)
                 anime.listar()
                 if type(anime.ep) == list:
@@ -190,3 +179,4 @@ while not sair:
                         Sakura.mediafire(copia)
                 else:
                     Sakura.mediafire(anime)
+

@@ -80,7 +80,9 @@ def listar():
                                     return dados
                         else:
                             if 0 <= esc < len(arquivo):
-                                os.popen(f'vlc-wrapper {caminho}\\{arquivo[esc]}')
+                                print(arquivo[esc])
+                                print(caminho)
+                                os.popen(f'vlc {caminho}/{arquivo[esc]}')
 
 
 def verifica(anime) -> None:

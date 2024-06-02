@@ -22,7 +22,7 @@ from sakura import Sakura
 from fire import fire
 from fera import animes_geral
 from fera import baixando
-from online import animes_online
+from bakashi import bakashi_anime
 
 sair = False
 
@@ -47,7 +47,7 @@ while not sair:
         print('='*30)
         print('[1] Animes Fire')
         print('[2] Sakura')
-        print('[3] Animes Online')
+        print('[3] Bakashi')
         while True:
             try:
                 esco = int(input('Escolha em site deseja pesquisar: '))
@@ -125,7 +125,7 @@ while not sair:
                         Sakura.mediafire(anime)
         elif esco == 3:
             nome = str(input('Digite o nome do anime: '))
-            animes = animes_online.pesquisar(nome)
+            animes = bakashi_anime.pesquisar(nome)
             if len(animes) == 0:
                 print('Nenhum anime encontrado')
             else:
@@ -145,7 +145,7 @@ while not sair:
                         break
                 if type(esco) == int:
                     anime = animes[esco]
-                    anime = animes_online.episodios(anime)
+                    anime = bakashi_anime.episodios(anime)
                     anime.listar()
                     if type(anime.ep) == list:
                         copia = animes
@@ -157,8 +157,8 @@ while not sair:
     elif esco == 2:
         r = animes_geral.listar()
         if r != None:
-            if r.site == 'Online':
-                anime = animes_online.episodios(r)
+            if r.site == 'Bakashi':
+                anime = bakashi_anime.episodios(r)
                 anime.listar()
                 if type(anime.ep) == list:
                     copia = anime

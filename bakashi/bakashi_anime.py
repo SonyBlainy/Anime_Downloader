@@ -3,7 +3,7 @@ import requests
 from lxml.html import fromstring
 
 def pesquisar(nome: str) -> list:
-    api = 'https://animesonline.nz/?s='
+    api = 'https://bakashi.tv/?s='
     if len(nome.split()) > 1:
         nome = '+'.join(nome.split())
     r = fromstring(requests.get(api+nome).content)

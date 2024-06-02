@@ -36,7 +36,7 @@ def listar():
                             elif esc.upper() == 'BAIXAR':
                                 nome = caminho.split('\\')[-1]
                                 try:
-                                    with open(save+'\\'+nome+'\\'+'linkzinho.txt', 'rb') as arquivo:
+                                    with open(save+'\\'+nome+'\\'+'save.txt', 'rb') as arquivo:
                                         dados = pickle.load(arquivo)
                                 except:
                                     print('Erro! Arquivo não existe, baixe um episodio do anime para criar')
@@ -45,8 +45,8 @@ def listar():
                                         dados.site = 'Fire'
                                     elif 'sakuraanimes' in dados.link:
                                         dados.site = 'Sakura'
-                                    elif 'fenixfansub' in dados.link:
-                                        dados.site = 'Fenix'
+                                    elif 'bakashi' in dados.link:
+                                        dados.site = 'Bakashi'
                                     return dados
                         else:
                             if 0 <= esc < len(arquivo):
@@ -66,7 +66,7 @@ def listar():
                             elif esc.upper() == 'BAIXAR':
                                 nome = caminho.split('/')[-1]
                                 try:
-                                    with open(save+'/'+nome+'/'+'linkzinho.txt', 'rb') as arquivo:
+                                    with open(save+'/'+nome+'/'+'save.txt', 'rb') as arquivo:
                                         dados = pickle.load(arquivo)
                                 except:
                                     print('Erro! Arquivo não existe, baixe um episodio do anime para criar')
@@ -75,13 +75,11 @@ def listar():
                                         dados.site = 'Fire'
                                     elif 'sakuraanimes' in dados.link:
                                         dados.site = 'Sakura'
-                                    elif 'animesonline' in dados.link:
-                                        dados.site = 'Online'
+                                    elif 'bakashi' in dados.link:
+                                        dados.site = 'Bakashi'
                                     return dados
                         else:
                             if 0 <= esc < len(arquivo):
-                                print(arquivo[esc])
-                                print(caminho)
                                 os.popen(f'vlc {caminho}/{arquivo[esc]}')
 
 
@@ -90,12 +88,14 @@ def verifica(anime) -> None:
     if os.getenv('pc') == 'Linux':
         if not os.path.isdir(path+'/'+nome):
             os.mkdir(path+'/'+nome)
+        if not os.path.isdir(save+'/'+nome):
             os.mkdir(save+'/'+nome)
-            with open(save+'/'+nome+'/'+'linkzinho.txt', 'wb') as arquivo:
+            with open(save+'/'+nome+'/'+'save.txt', 'wb') as arquivo:
                 pickle.dump(anime, arquivo)
     else:
         if not os.path.isdir(path+'\\'+nome):
             os.mkdir(path+'\\'+nome)
+        if not os.path.isdir(save+'\\'+nome):
             os.mkdir(save+'\\'+nome)
-            with open(save+'\\'+nome+'\\'+'linkzinho.txt', 'wb') as arquivo:
+            with open(save+'\\'+nome+'\\'+'save.txt', 'wb') as arquivo:
                 pickle.dump(anime, arquivo)

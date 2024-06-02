@@ -1,5 +1,0 @@
-{
-    "git.enabled": true,
-    "python.analysis.typeCheckingMode": "off",
-    "terminal.integrated.defaultProfile.windows": "Windows PowerShell",
-}

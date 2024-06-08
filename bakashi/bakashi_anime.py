@@ -28,19 +28,14 @@ def episodios(anime: Anime) -> Anime:
         link = nome.get('href')
         nome = nome.text
         r = fromstring(requests.get(link).content)
-        links = [l.get('src') for l in r.find_class('metaframe rptss')]
-        for l in links:
-            if 'csst.online' in l:
-                res = fromstring(requests.get(l).content)
-                var = res.xpath('body/script')[0].text
-                var = var.split('var')[2].split('(')[1].split(')')[0]
-                var = var.split('[1080p]')[1].split('"')[0][:-1]
-                break
-        try:
-            ep = Ep(nome, var, '.'+var.split('.')[-1], 'online')
-        except:
-            pass
-        else:
+        link = r.get_element_by_id('source-player-2')
+        link = link.find('div/iframe').get('src')
+        if 'csst.online' in link:
+            res = fromstring(requests.get(link).content)
+            var = res.xpath('body/script')[0].text
+            var = var.split('var')[2].split('(')[1].split(')')[0]
+            var = var.split('[1080p]')[1].split('"')[0][:-1]
+            ep = Ep(nome, var, '.'+var.split('.')[-1], 'Bakashi')
             lista.append(ep)
     anime.ep = lista
     return anime

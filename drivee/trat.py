@@ -13,7 +13,7 @@ def tratar(anime, estensao=None):
         limpo.append(''.join([letra for letra in palavra if letra not in [':', '°', '?', '-']]))
     limpo = ' '.join(limpo)
     anime.nome = limpo
-    servers = ['Mediafire', 'Fire', 'online']
+    servers = ['Mediafire', 'Fire', 'Bakashi']
     if anime.ep.server in servers:
         anime.ep.nome = '_'.join(anime.nome.split())+'_'+'_'.join(anime.ep.nome.split())+estensao
         if os.getenv('pc') == 'Linux':

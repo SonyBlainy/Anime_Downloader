@@ -19,7 +19,6 @@ else:
 import logging
 logging.basicConfig(filename='log.log', filemode='w', level=logging.DEBUG)
 from sakura import Sakura
-from fire import fire
 from fera import animes_geral
 from fera import baixando
 from bakashi import bakashi_anime
@@ -45,50 +44,19 @@ while not sair:
         sair = True
     elif esco == 1:
         print('='*30)
-        print('[1] Animes Fire')
-        print('[2] Sakura')
-        print('[3] Bakashi')
+        print('[1] Sakura')
+        print('[2] Bakashi')
         while True:
             try:
                 esco = int(input('Escolha em site deseja pesquisar: '))
             except:
                 print('Erro! Tente novamente')
             else:
-                if esco >= 1 and esco <= 3:
+                if esco >= 1 and esco <= 2:
                     break
                 else:
                     print('Erro! Opção inválida')
         if esco == 1:
-            nome = str(input('Digite o nome do anime: '))
-            anime = fire.pesquisa(nome)
-            print('='*30)
-            if len(anime) == 0:
-                print('Nenhum anime encontrado')
-            else:
-                for i, r in enumerate(anime):
-                    print(f'[{i}] {r.nome}')
-                while True:
-                    escolha = str(input('Escolha um anime ou digite sair: '))
-                    try:
-                        escolha = int(escolha)
-                    except:
-                        if escolha.upper() == 'SAIR':
-                            break
-                        else:
-                            print('Erro! Tente novamente')
-                    else:
-                        break
-                if type(escolha) == int:
-                    anime = fire.episodios(anime[escolha])
-                    anime.listar()
-                    if type(anime.ep) == list:
-                        anime.tratar()
-                        copia = anime
-                        for ep in anime.ep:
-                            copia.ep = ep
-                    else:
-                        fire.baixar(anime)
-        elif esco == 2:
             nome = str(input('Digite o nome do anime: '))
             resul = Sakura.pesquisar_anime(nome)
             if resul == []:
@@ -123,7 +91,7 @@ while not sair:
                             Sakura.mediafire(copia)
                     else:
                         Sakura.mediafire(anime)
-        elif esco == 3:
+        elif esco == 2:
             nome = str(input('Digite o nome do anime: '))
             animes = bakashi_anime.pesquisar(nome)
             if len(animes) == 0:

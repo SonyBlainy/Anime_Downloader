@@ -116,10 +116,11 @@ while not sair:
                     anime = bakashi_anime.episodios(anime)
                     anime.listar()
                     if type(anime.ep) == list:
-                        copia = animes
-                        for ep in animes.ep:
-                            copia.ep = TC.baixar(ep, varios=True)
-                            copia.baixarep()
+                        copia = anime
+                        for ep in anime.ep:
+                            copia.ep = ep
+                            copia.trat()
+                            baixando.baixarar(anime)
                     else:
                         baixando.baixarar(anime)
     elif esco == 2:
@@ -132,6 +133,7 @@ while not sair:
                     copia = anime
                     for ep in anime.ep:
                         copia.ep = ep
+                        copia.trat()
                         baixando.baixarar(anime)
                 else:
                     baixando.baixarar(anime)

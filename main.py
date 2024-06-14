@@ -82,10 +82,11 @@ while not sair:
                     anime = fire.episodios(anime[escolha])
                     anime.listar()
                     if type(anime.ep) == list:
-                        anime.tratar()
                         copia = anime
                         for ep in anime.ep:
                             copia.ep = ep
+                            copia.trat()
+                            fire.baixar(copia)
                     else:
                         fire.baixar(anime)
         elif esco == 2:

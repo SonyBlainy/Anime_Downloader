@@ -28,7 +28,7 @@ def episodios(anime: Anime) -> Anime:
     lista = []
     for ep in eps:
         link = ep.get('href')
-        nome = ' '.join(ep.text.split()[-2:])
+        nome = ep.text.split('-')[1].strip()
         r = fromstring(requests.get(link).content)
         link = r.get_element_by_id('dw').get('href')
         r = fromstring(requests.get(link).content)

@@ -82,15 +82,18 @@ while not sair:
                 if type(esco) == int:
                     anime = resul[esco]
                     anime.eps()
-                    anime.listar()
-                    if type(anime.ep) == list:
-                        copia = anime
-                        for ep in anime.ep:
-                            copia.ep = ep
-                            copia.trat()
-                            Sakura.mediafire(copia)
+                    if anime.ep == None:
+                        print('Erro ao tentar obter o link para download')
                     else:
-                        Sakura.mediafire(anime)
+                        anime.listar()
+                        if type(anime.ep) == list:
+                            copia = anime
+                            for ep in anime.ep:
+                                copia.ep = ep
+                                copia.trat()
+                                Sakura.mediafire(copia)
+                        else:
+                            Sakura.mediafire(anime)
         elif esco == 2:
             nome = str(input('Digite o nome do anime: '))
             animes = bakashi_anime.pesquisar(nome)
@@ -140,13 +143,16 @@ while not sair:
             elif r.site == 'Sakura':
                 anime = r
                 anime.eps()
-                anime.listar()
-                if type(anime.ep) == list:
-                    copia = anime
-                    for ep in anime.ep:
-                        copia.ep = ep
-                        copia.trat()
-                        Sakura.mediafire(copia)
+                if anime.ep == None:
+                    print('Erro ao tentar obter o link para download')
                 else:
-                    Sakura.mediafire(anime)
+                    anime.listar()
+                    if type(anime.ep) == list:
+                        copia = anime
+                        for ep in anime.ep:
+                            copia.ep = ep
+                            copia.trat()
+                            Sakura.mediafire(copia)
+                    else:
+                        Sakura.mediafire(anime)
 

@@ -101,7 +101,16 @@ def listar_episodios(anime):
     link = fromstring(requests.get(link).content)
     link = link.find_class('w-full')[0]
     link = link.find('a').get('href')
-    link = ouo_bypass(link)['bypassed_link']
+    contador = 0
+    while True:
+        try:
+            link = ouo_bypass(link)['bypassed_link']
+        except:
+            contador += 1
+            if contador == 10:
+                return None
+        else:
+            break
     id = link.split('/')[4]
     para = {'content_type': 'files', 'filter': 'all', 'order_by': 'name', 'order_direction': 'asc', 'chunck': 1,
             'version': 1.5, 'folder_key': id, 'response_format': 'json'}
@@ -129,8 +138,8 @@ def listar_episodios(anime):
 
 def mediafire(anime):
     r = fromstring(requests.get(anime.ep.link).content)
-    link = r.find_class('download_link')[0]
-    link = link.xpath('a')[1]
-    anime.ep.link = link.get('href')
+    link = r.get_element_by_id('download_link')
+    link = link.xpath('a')[1].get('href')
+    anime.ep.link = link
     baixando.baixarar(anime)
     

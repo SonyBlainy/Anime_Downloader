@@ -91,9 +91,15 @@ while not sair:
                             for ep in anime.ep:
                                 copia.ep = ep
                                 copia.trat()
-                                Sakura.mediafire(copia)
+                                try:
+                                    Sakura.mediafire(copia)
+                                except KeyboardInterrupt:
+                                    print('Download encerrado pelo usuario')
                         else:
-                            Sakura.mediafire(anime)
+                            try:
+                                Sakura.mediafire(anime)
+                            except KeyboardInterrupt:
+                                print('Download encerrado pelo usuario')
         elif esco == 2:
             nome = str(input('Digite o nome do anime: '))
             animes = bakashi_anime.pesquisar(nome)
@@ -123,9 +129,15 @@ while not sair:
                         for ep in anime.ep:
                             copia.ep = ep
                             copia.trat()
-                            baixando.baixarar(anime)
+                            try:
+                                baixando.baixarar(anime)
+                            except KeyboardInterrupt:
+                                print('Download encerrado pelo usuario')
                     else:
-                        baixando.baixarar(anime)
+                        try:
+                            baixando.baixarar(anime)
+                        except KeyboardInterrupt:
+                            print('Download encerrado pelo usuario')
     elif esco == 2:
         r = animes_geral.listar()
         if r != None:
@@ -137,9 +149,15 @@ while not sair:
                     for ep in anime.ep:
                         copia.ep = ep
                         copia.trat()
-                        baixando.baixarar(anime)
+                        try:
+                            baixando.baixarar(anime)
+                        except KeyboardInterrupt:
+                            print('Download encerrado pelo usuario')
                 else:
-                    baixando.baixarar(anime)
+                    try:
+                        baixando.baixarar(anime)
+                    except KeyboardInterrupt:
+                        print('Download encerrado pelo usuario')
             elif r.site == 'Sakura':
                 anime = r
                 anime.eps()
@@ -152,7 +170,13 @@ while not sair:
                         for ep in anime.ep:
                             copia.ep = ep
                             copia.trat()
-                            Sakura.mediafire(copia)
+                            try:
+                                Sakura.mediafire(copia)
+                            except KeyboardInterrupt:
+                                print('Download encerrado pelo usuario')
                     else:
-                        Sakura.mediafire(anime)
+                        try:
+                            Sakura.mediafire(anime)
+                        except KeyboardInterrupt:
+                            print('Download encerrado pelo usuario')
 

@@ -85,55 +85,95 @@ def pesquisar_anime(anime):
     
 def listar_episodios(anime):
     api = 'https://www.mediafire.com/api/1.4/folder/get_content.php'
+    print('[0] Pasta de Download')
+    print('[1] Episodios Unicos')
+    while True:
+        try:
+            esc = int(input('Digite sua escolha: '))
+        except:
+            print('Erro! Tente novamente')
+        else:
+            if esc in (0, 1):
+                break
+            else:
+                print('Erro! Tente novamente')
     r = requests.get(anime.link)
     r = fromstring(r.content)
     r = r.find_class('tab-content')[0]
     if r.find('.div[@id="fhd"]').find('.table') != None:
-        link = r.find('.div[@id="fhd"]').find('.table').find('.//td')
+        link = r.find('.div[@id="fhd"]')
     else:
-        link = r.find('.div[@id="hd"]').find('.table').find('.//td')
-    link = link.xpath('a')
-    for l in link:
-        texto = l.xpath('text()')[1].strip()
-        if texto == 'Mediafire':
-            link = l.get('href')
-            break
-    link = fromstring(requests.get(link).content)
-    link = link.find_class('w-full')[0]
-    link = link.find('a').get('href')
-    contador = 0
-    while True:
-        try:
-            link = ouo_bypass(link)['bypassed_link']
-        except:
-            contador += 1
-            if contador == 10:
-                return None
-        else:
-            break
-    id = link.split('/')[4]
-    para = {'content_type': 'files', 'filter': 'all', 'order_by': 'name', 'order_direction': 'asc', 'chunck': 1,
-            'version': 1.5, 'folder_key': id, 'response_format': 'json'}
-    r = requests.get(api, para)
-    resposta = dict(r.json())
-    eps = resposta['response']['folder_content']['files']
-    resposta = []
-    for e in eps:
-        link = e['links']['normal_download']
-        if len(e['filename'].split('_')[-1].split()) == 1:
-            if e['filename'].split('_')[-2] == 'Final':
-                nome = 'Episodio'+'_'+'_'.join(e['filename'].split('_')[-3:-1])
+        link = r.find('.div[@id="hd"]')
+    if esc == 0:
+        link = link.find('.table').find('.//td').xpath('a')
+        for l in link:
+            texto = l.xpath('text()')[1].strip()
+            if texto == 'Mediafire':
+                link = l.get('href')
+                break
+        link = fromstring(requests.get(link).content)
+        link = link.find_class('w-full')[0]
+        link = link.find('a').get('href')
+        contador = 0
+        while True:
+            try:
+                link = ouo_bypass(link)['bypassed_link']
+            except:
+                contador += 1
+                if contador == 10:
+                    return None
             else:
-                nome = 'Episodio'+'_'+e['filename'].split('_')[-2]
-        else:
-            if e['filename'].split('_')[-2] == 'Final':
-                nome = 'Final'
+                break
+        id = link.split('/')[4]
+        para = {'content_type': 'files', 'filter': 'all', 'order_by': 'name', 'order_direction': 'asc', 'chunck': 1,
+                'version': 1.5, 'folder_key': id, 'response_format': 'json'}
+        r = requests.get(api, para)
+        resposta = dict(r.json())
+        eps = resposta['response']['folder_content']['files']
+        resposta = []
+        for e in eps:
+            link = e['links']['normal_download']
+            if len(e['filename'].split('_')[-1].split()) == 1:
+                if e['filename'].split('_')[-2] == 'Final':
+                    nome = 'Episodio'+'_'+'_'.join(e['filename'].split('_')[-3:-1])
+                else:
+                    nome = 'Episodio'+'_'+e['filename'].split('_')[-2]
             else:
-                nome = 'Episodio'+f'_{e["filename"].split("_")[-1].split()[0]}'
-        estensao ='.'+e['filename'].split('.')[-1]
-        server = 'Mediafire'
-        ep = Ep(nome, link, estensao, server)
-        resposta.append(ep)
+                if e['filename'].split('_')[-2] == 'Final':
+                    nome = 'Final'
+                else:
+                    nome = 'Episodio'+f'_{e["filename"].split("_")[-1].split()[0]}'
+            estensao ='.'+e['filename'].split('.')[-1]
+            server = 'Mediafire'
+            ep = Ep(nome, link, estensao, server)
+            resposta.append(ep)
+    else:
+        links = link.xpath('table')[1].xpath('tr')
+        resposta = []
+        for l in links:
+            nome = 'Episodio_'+l.find('td').text.split()[-1]
+            link = l.xpath('td')[1].xpath('a')
+            for ll in link.copy():
+                if ll.find('span').text.strip() == 'Mediafire':
+                    link = ll.get('href')
+                    break
+            server = 'Mediafire'
+            link = fromstring(requests.get(link).content)
+            link = link.find_class('w-full')[0]
+            link = link.find('a').get('href')
+            contador = 0
+            while True:
+                try:
+                    link = ouo_bypass(link)['bypassed_link']
+                except:
+                    contador += 1
+                    if contador == 10:
+                        return None
+                else:
+                    break
+            estensao ='.'+link.split('/')[-2].split('.')[-1]
+            ep = Ep(nome, link, estensao, server)
+            resposta.append(ep)
     return resposta
 
 def mediafire(anime):

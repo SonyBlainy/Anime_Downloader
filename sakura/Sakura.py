@@ -128,6 +128,7 @@ def listar_episodios(anime):
         para = {'content_type': 'files', 'filter': 'all', 'order_by': 'name', 'order_direction': 'asc', 'chunck': 1,
                 'version': 1.5, 'folder_key': id, 'response_format': 'json'}
         r = requests.get(api, para)
+        print(link)
         resposta = dict(r.json())
         eps = resposta['response']['folder_content']['files']
         resposta = []
@@ -137,7 +138,11 @@ def listar_episodios(anime):
                 if e['filename'].split('_')[-2] == 'Final':
                     nome = 'Episodio'+'_'+'_'.join(e['filename'].split('_')[-3:-1])
                 else:
-                    nome = 'Episodio'+'_'+e['filename'].split('_')[-2]
+                    final = e['filename'].split('_')[-1]
+                    if len(final.split('.')) > 2:
+                        nome = 'Episodio'+'_'+'_'.join(final.split('.')[:-1])
+                    else:
+                        nome = 'Episodio'+'_'+final.split('.')[0]
             else:
                 if e['filename'].split('_')[-2] == 'Final':
                     nome = 'Final'

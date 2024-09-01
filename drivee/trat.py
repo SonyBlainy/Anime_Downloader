@@ -10,7 +10,7 @@ def tratar(anime, estensao=None):
     nome = nome.split()
     limpo = []
     for palavra in nome:
-        limpo.append(''.join([letra for letra in palavra if letra not in [':', '°', '?', '-']]))
+        limpo.append(''.join([letra for letra in palavra if letra not in [':', '°', '?', '-', ',', '“', '”', '.']]))
     limpo = ' '.join(limpo)
     anime.nome = limpo
     servers = ['Mediafire', 'Fire', 'Bakashi']

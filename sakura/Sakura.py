@@ -111,7 +111,10 @@ def listar_episodios(anime):
             if texto == 'Mediafire':
                 link = l.get('href')
                 break
-        link = fromstring(requests.get(link).content)
+        try:
+            link = fromstring(requests.get(link).content)
+        except:
+            return None
         link = link.find_class('w-full')[0]
         link = link.find('a').get('href')
         contador = 0
@@ -128,7 +131,6 @@ def listar_episodios(anime):
         para = {'content_type': 'files', 'filter': 'all', 'order_by': 'name', 'order_direction': 'asc', 'chunck': 1,
                 'version': 1.5, 'folder_key': id, 'response_format': 'json'}
         r = requests.get(api, para)
-        print(link)
         resposta = dict(r.json())
         eps = resposta['response']['folder_content']['files']
         resposta = []

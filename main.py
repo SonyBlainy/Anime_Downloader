@@ -83,7 +83,7 @@ while not sair:
                     anime = resul[esco]
                     anime.eps()
                     if anime.ep == None:
-                        print('Erro ao tentar obter o link para download')
+                        print('Erro ao tentar obter o link para download ou pasta de download')
                     else:
                         anime.listar()
                         if type(anime.ep) == list:

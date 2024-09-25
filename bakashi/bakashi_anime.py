@@ -1,6 +1,7 @@
 from sakura.Sakura import Anime, Ep
 import requests
 from lxml.html import fromstring
+from urllib.parse import unquote
 
 def pesquisar(nome: str) -> list:
     api = 'https://bakashi.tv/?s='
@@ -28,15 +29,32 @@ def episodios(anime: Anime) -> Anime:
         link = nome.get('href')
         nome = nome.text
         r = fromstring(requests.get(link).content)
-        link = r.get_element_by_id('source-player-2')
-        link = link.find('div/iframe').get('src')
-        if 'csst.online' in link:
-            res = fromstring(requests.get(link).content)
-            var = res.xpath('body/script')[0].text
-            var = var.split('var')[2].split('(')[1].split(')')[0]
-            var = var.split('[1080p]')[1].split('"')[0][:-1]
-            ep = Ep(nome, var, '.'+var.split('.')[-1], 'Bakashi')
-            lista.append(ep)
+        links = r.get_element_by_id('dooplay_player_content').find_class('source-box')[1:]
+        for l in links:
+            l = l.find('div/iframe').get('src')
+            if 'csst.online' in l:
+                res = fromstring(requests.get(l).content)
+                var = res.xpath('body/script')[0].text
+                var = var.split('var')[2].split('(')[1].split(')')[0]
+                var = var.split('[1080p]')[1].split('"')[0][:-1]
+                ep = Ep(nome, var, '.'+var.split('.')[-1], 'Bakashi')
+                lista.append(ep)
+                break
+            else:
+                l = unquote(l)
+                if 'streamtape' in l:
+                    l = l.split('?')[1].split('=')[1].split('/')
+                    l[3] = 'v'
+                    l = '/'.join(l)
+                    r = fromstring(requests.get(l).content)
+                    l = r.get_element_by_id('norobotlink').xpath('./following-sibling::script')[0].text.split('=')
+                    l = l[5].split("'")[0]
+                    li = 'https://'+r.get_element_by_id('ideoooolink').text[1:]
+                    li = li.split('&')
+                    li[-1] = f'token={l}'
+                    li = '&'.join(li)+'&dl=1'
+                    ep = Ep(nome, li, '.mp4', 'Bakashi')
+                    lista.append(ep)
+                    break
     anime.ep = lista
     return anime
-

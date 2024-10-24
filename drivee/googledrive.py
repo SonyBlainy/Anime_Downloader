@@ -1,8 +1,8 @@
 import gdown
 import os
 
-path = f"C:\\Users\\{os.getlogin()}\\Desktop\\animes\\"
-save = "C:\\Users\\Micro\\AppData\\Local\\Anime_downloader\\"
+path = os.getenv('caminho')
+save = os.getenv('save')
 
 def baixar(ep):
     link = ep.link

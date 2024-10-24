@@ -4,14 +4,11 @@ from lxml.html import fromstring
 from drivee.trat import tratar
 from fera.animes_geral import verifica
 from fera import baixando
-import os
-import pickle
 from ouo_bypass import ouo_bypass
 from selenium.webdriver.common.by import By
 from selenium.webdriver import FirefoxOptions
 from selenium.webdriver import FirefoxService
 from time import sleep as mimir
-from sakura.baixarep import baixarar
 
 ops = FirefoxOptions()
 ops.log.level = 'trace'

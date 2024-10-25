@@ -22,6 +22,8 @@ from sakura import Sakura
 from fera import animes_geral
 from fera import baixando
 from bakashi import bakashi_anime
+from erai import nyaa
+from erai import torrent
 
 sair = False
 
@@ -46,13 +48,14 @@ while not sair:
         print('='*30)
         print('[1] Sakura')
         print('[2] Bakashi')
+        print('[3] Erai')
         while True:
             try:
                 esco = int(input('Escolha em site deseja pesquisar: '))
             except:
                 print('Erro! Tente novamente')
             else:
-                if esco >= 1 and esco <= 2:
+                if esco >= 1 and esco <= 3:
                     break
                 else:
                     print('Erro! Opção inválida')
@@ -138,6 +141,34 @@ while not sair:
                             baixando.baixarar(anime)
                         except KeyboardInterrupt:
                             print('Download encerrado pelo usuario')
+        elif esco == 3:
+            nome = str(input('Digite o nome do anime: '))
+            animes = nyaa.pesquisar(nome)
+            if len(animes) == 0:
+                print('Nenhum anime encontrado')
+            else:
+                print('='*30)
+                for n, anime in enumerate(animes.keys()):
+                    print(f'[{n}] {anime}')
+                while True:
+                    try:
+                        esco = str(input('Escolha o anime que deseja baixar ou digite sair: '))
+                        esco = int(esco)
+                    except:
+                        if esco.upper() == 'SAIR':
+                            break
+                        else:
+                            print('Erro! Tente novamente')
+                    else:
+                        break
+                if type(esco) == int:
+                    eps = animes[list(animes.keys())[esco]]
+                    anime = Sakura.Anime(list(animes.keys())[esco], 'sim')
+                    eps = [Sakura.Ep('Episódio '+eps['eps'][e], eps['links'][e], eps['extensao'][e], 'Bakashi') for e in range(len(eps['eps'])-1, -1, -1)]
+                    anime.ep = eps
+                    anime.listar()
+                    qbit = torrent.login()
+                    torrent.baixar(anime, qbit)
     elif esco == 2:
         r = animes_geral.listar()
         if r != None:
@@ -179,4 +210,3 @@ while not sair:
                             Sakura.mediafire(anime)
                         except KeyboardInterrupt:
                             print('Download encerrado pelo usuario')
-

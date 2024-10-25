@@ -17,7 +17,6 @@ def pesquisar(nome:str):
         while True:
             page = r.find_class('center')[0].find_class('pagination')
             if len(page) > 0:
-                print(page)
                 page = page[0]
                 try:
                     link = 'https://nyaa.land'+page.find_class('next')[0].find('a').get('href')
@@ -40,7 +39,16 @@ def busca(pagina, lista=None):
         else:
             nome = anime.find('.td[2]/a[2]').get('title')
         anime_nome = ' '.join(nome.split('-')[1].split()[1:])
-        n = nome.split('-')[2].split()[0]
+        n = nome.split()
+        for i in n.copy():
+            if i[0].isnumeric() and n[n.index(i)+1][0] == '[' and n[n.index(i)-1] != '~':
+                posi = n.index(i)-1
+                n = i
+                break
+        if type(n) != list:
+            anime_nome = ' '.join(nome.split()[1:posi])
+        else:
+            continue
         colchetes = re.findall(r'\[(.*?)\]', nome)
         link = anime.find('.td[3]/a[2]').get('href')
         if lista.get(anime_nome) == None:

@@ -17,4 +17,12 @@ def login() -> requests.Session:
         return sessao
 
 def baixar(anime, qbit: requests.Session):
-    down = qbit.post(api_url+'torrents/add', {'urls': anime.ep.link})
+    qbit.post(api_url+'torrents/add', {'urls': anime.ep.link, 'savepath': anime.ep.caminho})
+
+def infos(qbit: requests.Session):
+    resposta = qbit.get(api_url+'torrents/info')
+    return resposta.json()
+
+def parar(qbit: requests.Session, hash: str):
+    qbit.post(api_url+'torrents/stop', data={'hashes': hash})
+    qbit.post(api_url+'torrents/remove', data={'hashes': hash, 'deleteFiles': 'false'})

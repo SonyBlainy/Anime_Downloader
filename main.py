@@ -33,6 +33,7 @@ while not sair:
     print('='*30)
     print('[1] Pesquisar um anime')
     print('[2] Listar episódios baixados')
+    print('[3] Qbit')
     print('[0] Sair')
     print('='*30)
     while True:
@@ -167,8 +168,16 @@ while not sair:
                     eps = [Sakura.Ep('Episódio '+eps['eps'][e], eps['links'][e], eps['extensao'][e], 'Bakashi') for e in range(len(eps['eps'])-1, -1, -1)]
                     anime.ep = eps
                     anime.listar()
-                    qbit = torrent.login()
-                    torrent.baixar(anime, qbit)
+                    if type(anime.ep) == list:
+                        copia = anime
+                        qbit = torrent.login()
+                        for ep in anime.ep:
+                            copia.ep = ep
+                            copia.trat()
+                            torrent.baixar(copia, qbit)
+                    else:
+                        qbit = torrent.login()
+                        torrent.baixar(anime, qbit)
     elif esco == 2:
         r = animes_geral.listar()
         if r != None:
@@ -210,3 +219,41 @@ while not sair:
                             Sakura.mediafire(anime)
                         except KeyboardInterrupt:
                             print('Download encerrado pelo usuario')
+    elif esco == 3:
+        qbit = torrent.login()
+        r = torrent.infos(qbit)
+        if r == []:
+            print('Nenhum torrent encotrado')
+        else:
+            for i, t in enumerate(r):
+                print(f'[{i}] {t['name']}')
+            print('='*30)
+            esco = 'sim'
+            while True:
+                try:
+                    esco = int(input('Escolha um torrent para gerenciar: '))
+                except KeyboardInterrupt:
+                    break
+                except:
+                    print('Erro! Tente novamente')
+                else:
+                    break
+            if esco != 'sim':
+                print('='*30)
+                r = r[esco]
+                print(f'Nome: {r['name']}')
+                print(f'Velocidade: {r['dlspeed']/(3*1024):.2f}Mb/s')
+                print(f'Progresso: {r['progress']*100:.2f}%')
+                print(f'Estado: {r['state']}')
+                print('='*30)
+                print('[0] Sair')
+                print('[1] Pausar e deletar')
+                while True:
+                    try:
+                        esco = int(input('Escolha o que deseja fazer: '))
+                    except:
+                        print('Erro! Tente novamente')
+                    else:
+                        break
+                if esco == 1:
+                    torrent.parar(qbit, r['hash'])

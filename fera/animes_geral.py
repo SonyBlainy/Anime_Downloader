@@ -52,7 +52,7 @@ def listar():
                             if 0 <= esc < len(arquivo):
                                 os.popen(f'{caminho}\\{arquivo[esc]}')
             else:
-                if caminho.split('/')[-1] == esc:
+                if caminho.split('\\')[-1] == esc:
                     print('='*30)
                     for i, a in enumerate(arquivo):
                         print(f'[{i}] {a}')
@@ -64,9 +64,9 @@ def listar():
                             if esc.upper() == 'SAIR':
                                 break
                             elif esc.upper() == 'BAIXAR':
-                                nome = caminho.split('/')[-1]
+                                nome = caminho.split('\\')[-1]
                                 try:
-                                    with open(save+'/'+nome+'/'+'save.txt', 'rb') as arquivo:
+                                    with open(save+'\\'+nome+'\\'+'save.txt', 'rb') as arquivo:
                                         dados = pickle.load(arquivo)
                                 except:
                                     print('Erro! Arquivo não existe, baixe um episodio do anime para criar')
@@ -80,7 +80,8 @@ def listar():
                                     return dados
                         else:
                             if 0 <= esc < len(arquivo):
-                                os.popen(f'vlc {caminho}/{arquivo[esc]}')
+                                os.system(f'start {caminho}')
+                                os.system(rf"cd {caminho} && '.\{arquivo[esc]}'")
 
 
 def verifica(anime) -> None:

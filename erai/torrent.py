@@ -25,4 +25,4 @@ def infos(qbit: requests.Session):
 
 def parar(qbit: requests.Session, hash: str):
     qbit.post(api_url+'torrents/stop', data={'hashes': hash})
-    qbit.post(api_url+'torrents/remove', data={'hashes': hash, 'deleteFiles': 'false'})
+    qbit.post(api_url+'torrents/delete', data={'hashes': hash, 'deleteFiles': 'false'})

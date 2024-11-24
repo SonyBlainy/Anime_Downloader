@@ -51,20 +51,38 @@ def busca(pagina, lista=None):
             continue
         colchetes = re.findall(r'\[(.*?)\]', nome)
         link = anime.find('.td[3]/a[2]').get('href')
-        if lista.get(anime_nome) == None:
-            if '1080p' in colchetes or 'HEVC' in colchetes and 'POR-BR' in colchetes:
-                ep = dict()
-                ep['eps'] = [n]
-                ep['links'] = [link]
-                ep['extensao'] = ['.mkv']
-                lista[anime_nome] = ep
+        if len(colchetes[1].split()) > 1:
+            if lista.get(anime_nome) == None:
+                if '1080p' in colchetes[1].split() or 'HEVC' in colchetes[1].split():
+                    if 'MultiSub' in colchetes:
+                        ep = dict()
+                        ep['eps'] = [n]
+                        ep['links'] = [link]
+                        ep['extensao'] = ['.mkv']
+                        lista[anime_nome] = ep
+            else:
+                if 'HEVC' in colchetes[1].split():
+                    if 'MultiSub' in colchetes:
+                        lista[anime_nome]['eps'].append(n)
+                        lista[anime_nome]['links'].append(link)
+                        lista[anime_nome]['extensao'].append('.mkv')
         else:
-            if n in lista[anime_nome]['eps'] and 'HEVC' in colchetes and 'POR-BR' in colchetes:
-                numero = lista[anime_nome]['eps'].index(n)
-                lista[anime_nome]['links'][numero] = link
-                lista[anime_nome]['extensao'][numero] = '.mkv'
-            elif '1080p' in colchetes and 'POR-BR' in colchetes and n not in lista[anime_nome]['eps']:
-                lista[anime_nome]['eps'].append(n)
-                lista[anime_nome]['links'].append(link)
-                lista[anime_nome]['extensao'].append('.mkv')
+            if lista.get(anime_nome) == None:
+                if '1080p' in colchetes or 'HEVC' in colchetes:
+                    if 'POR-BR' in colchetes or 'Multiple Subtitle' in colchetes:
+                        ep = dict()
+                        ep['eps'] = [n]
+                        ep['links'] = [link]
+                        ep['extensao'] = ['.mkv']
+                        lista[anime_nome] = ep
+            else:
+                if n in lista[anime_nome]['eps'] and 'HEVC' in colchetes:
+                    if 'POR-BR' in colchetes or 'Multiple Subtitle' in colchetes:
+                        numero = lista[anime_nome]['eps'].index(n)
+                        lista[anime_nome]['links'][numero] = link
+                elif '1080p' in colchetes and n not in lista[anime_nome]['eps']:
+                    if 'POR-BR' in colchetes or 'Multiple Subtitle' in colchetes:
+                        lista[anime_nome]['eps'].append(n)
+                        lista[anime_nome]['links'].append(link)
+                        lista[anime_nome]['extensao'].append('.mkv')
     return lista

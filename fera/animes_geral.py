@@ -4,86 +4,65 @@ path = os.getenv('caminho')
 save = os.getenv('save')
 
 def listar():
-    for i, (caminho, diretorio, arquivo) in enumerate(os.walk(path)):
-        if len(diretorio) > 0 and i == 0:
-            for i, d in enumerate(diretorio):
-                print(f'[{i}] {d}')
+    with os.scandir(path) as entrada:
+        listar_animes = True
+        lista = [a for a in entrada]
+        while listar_animes:
+            print('='*30)
+            for indice, e in enumerate(lista):
+                print(f'[{indice}] {e.name}')
             while True:
-                esc = str(input('Escolha um anime ou digite sair: '))
+                n = str(input('Escolha um anime ou digite sair: '))
                 try:
-                    esc = int(esc)
-                    esc = diretorio[esc]
+                    n = int(n)
                 except:
-                    if esc.upper() == 'SAIR':
+                    if n.upper() == 'SAIR':
                         break
+                    else:
+                        print('Erro! Tente novamente')
                 else:
-                    break
-        if esc == 'SAIR':
-            break
-        else:
-            if os.getenv('pc') != 'Linux':
-                if caminho.split('\\')[-1] == esc:
+                    if n >= 0 and n < len(lista):
+                        break
+                    else:
+                        print('Erro! Opção de anime incorreta')
+            if type(n) == int:
+                with os.scandir(path) as ent2:
                     print('='*30)
-                    for i, a in enumerate(arquivo):
-                        print(f'[{i}] {a}')
-                    while True:
-                        esc = str(input('Escolha um episódio, digite sair ou baixar: '))
-                        try:
-                            esc = int(esc)
-                        except:
-                            if esc.upper() == 'SAIR':
-                                break
-                            elif esc.upper() == 'BAIXAR':
-                                nome = caminho.split('\\')[-1]
-                                try:
-                                    with open(save+'\\'+nome+'\\'+'save.txt', 'rb') as arquivo:
-                                        dados = pickle.load(arquivo)
-                                except:
-                                    print('Erro! Arquivo não existe, baixe um episodio do anime para criar')
-                                else:
-                                    if 'animefire' in dados.link:
-                                        dados.site = 'Fire'
-                                    elif 'sakuraanimes' in dados.link:
-                                        dados.site = 'Sakura'
-                                    elif 'bakashi' in dados.link:
-                                        dados.site = 'Bakashi'
-                                    return dados
-                        else:
-                            if 0 <= esc < len(arquivo):
-                                os.popen(f'{caminho}\\{arquivo[esc]}')
+                    for i, e in enumerate(ent2):
+                        if i == n:
+                            with os.scandir(e.path) as eps:
+                                for indice, ee in enumerate(eps):
+                                    print(f'[{indice}] {ee.name}')
+                                while True:
+                                    numero = str(input('Digite o numero do episódio, digite sair ou baixar: '))
+                                    try:
+                                        numero = int(numero)
+                                    except:
+                                        if numero.upper() == 'SAIR':
+                                            break
+                                        elif numero.upper() == 'BAIXAR':
+                                            anime_nome = e.path.split('\\')[-1]
+                                            try:
+                                                with open(save+'\\'+anime_nome+'\\save.txt', 'rb') as arquivo:
+                                                    dados = pickle.load(arquivo)
+                                            except:
+                                                print('Arquivo não existe, baixe um episódio do anime para crialo')
+                                            else:
+                                                linkzinho = dados.link
+                                                if 'bakashi' in linkzinho:
+                                                    dados.site = 'Bakashi'
+                                                elif 'sakuraanimes' in linkzinho:
+                                                    dados.site = 'Sakura'
+                                                return dados
+                                        else:
+                                            print('Erro! Tente novamente')
+                                    else:
+                                        for ii, ep in enumerate(os.scandir(e.path)):
+                                            if ii == numero:
+                                                os.system(f"start '{ep.path}'")
             else:
-                if caminho.split('\\')[-1] == esc:
-                    print('='*30)
-                    for i, a in enumerate(arquivo):
-                        print(f'[{i}] {a}')
-                    while True:
-                        esc = str(input('Escolha um episódio, digite sair ou baixar: '))
-                        try:
-                            esc = int(esc)
-                        except:
-                            if esc.upper() == 'SAIR':
-                                break
-                            elif esc.upper() == 'BAIXAR':
-                                nome = caminho.split('\\')[-1]
-                                try:
-                                    with open(save+'\\'+nome+'\\'+'save.txt', 'rb') as arquivo:
-                                        dados = pickle.load(arquivo)
-                                except:
-                                    print('Erro! Arquivo não existe, baixe um episodio do anime para criar')
-                                else:
-                                    if 'animefire' in dados.link:
-                                        dados.site = 'Fire'
-                                    elif 'sakuraanimes' in dados.link:
-                                        dados.site = 'Sakura'
-                                    elif 'bakashi' in dados.link:
-                                        dados.site = 'Bakashi'
-                                    return dados
-                        else:
-                            if 0 <= esc < len(arquivo):
-                                os.system(f'start {caminho}')
-                                os.system(rf"cd {caminho} && '.\{arquivo[esc]}'")
-
-
+                listar_animes = False
+                                
 def verifica(anime) -> None:
     nome = '_'.join(anime.nome.split())
     if os.getenv('pc') == 'Linux':

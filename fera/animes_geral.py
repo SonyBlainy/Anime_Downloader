@@ -49,6 +49,8 @@ def listar():
                                                 print('Arquivo não existe, baixe um episódio do anime para crialo')
                                             else:
                                                 linkzinho = dados.link
+                                                if linkzinho == 'sim':
+                                                    dados.site = 'Erai_'+dados.nome
                                                 if 'bakashi' in linkzinho:
                                                     dados.site = 'Bakashi'
                                                 elif 'sakuraanimes' in linkzinho:

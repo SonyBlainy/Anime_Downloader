@@ -219,6 +219,42 @@ while not sair:
                             Sakura.mediafire(anime)
                         except KeyboardInterrupt:
                             print('Download encerrado pelo usuario')
+            elif r.site.split('_')[0] == 'Erai':
+                nome = r.site.split('_')[1].strip()
+                animes = nyaa.pesquisar(nome)
+                if len(animes) == 0:
+                    print('Nenhum anime encontrado')
+                else:
+                    print('='*30)
+                    for n, anime in enumerate(animes.keys()):
+                        print(f'[{n}] {anime}')
+                    while True:
+                        try:
+                            esco = str(input('Escolha o anime que deseja baixar ou digite sair: '))
+                            esco = int(esco)
+                        except:
+                            if esco.upper() == 'SAIR':
+                                break
+                            else:
+                                print('Erro! Tente novamente')
+                        else:
+                            break
+                    if type(esco) == int:
+                        eps = animes[list(animes.keys())[esco]]
+                        anime = Sakura.Anime(list(animes.keys())[esco], 'sim')
+                        eps = [Sakura.Ep('Episódio '+eps['eps'][e], eps['links'][e], eps['extensao'][e], 'Bakashi') for e in range(len(eps['eps'])-1, -1, -1)]
+                        anime.ep = eps
+                        anime.listar()
+                        if type(anime.ep) == list:
+                            copia = anime
+                            qbit = torrent.login()
+                            for ep in anime.ep:
+                                copia.ep = ep
+                                copia.trat()
+                                torrent.baixar(copia, qbit)
+                        else:
+                            qbit = torrent.login()
+                            torrent.baixar(anime, qbit)
     elif esco == 3:
         qbit = torrent.login()
         r = torrent.infos(qbit)

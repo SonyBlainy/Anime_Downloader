@@ -7,7 +7,7 @@ api_url = 'http://127.0.0.1:8080/api/v2/'
 
 def login() -> requests.Session:
     if 'qbittorrent.exe' not in os.popen('tasklist').read().lower():
-        os.system('qbittorrent.exe')
+        os.system('powershell -Command \"qbittorrent.exe\"')
     sessao = requests.Session()
     para = {'username': 'admin', 'password': 'admin123'}
     header = {'Referer': 'http://127.0.0.1:8080'}

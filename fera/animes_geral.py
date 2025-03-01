@@ -61,7 +61,7 @@ def listar():
                                     else:
                                         for ii, ep in enumerate(os.scandir(e.path)):
                                             if ii == numero:
-                                                os.system(f"start '{ep.path}'")
+                                                os.system(f"powershell.exe -Command \"start '{ep.path}'\"")
             else:
                 listar_animes = False
                                 

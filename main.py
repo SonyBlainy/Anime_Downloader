@@ -257,39 +257,48 @@ while not sair:
                             torrent.baixar(anime, qbit)
     elif esco == 3:
         qbit = torrent.login()
-        r = torrent.infos(qbit)
-        if r == []:
-            print('Nenhum torrent encotrado')
+        if qbit == None:
+            print('Erro ao fazer login')
         else:
-            for i, t in enumerate(r):
-                print(f'[{i}] {t['name']}')
-            print('='*30)
-            esco = 'sim'
-            while True:
-                try:
-                    esco = int(input('Escolha um torrent para gerenciar: '))
-                except KeyboardInterrupt:
-                    break
-                except:
-                    print('Erro! Tente novamente')
-                else:
-                    break
-            if esco != 'sim':
+            r = torrent.infos(qbit)
+            if r == []:
+                print('Nenhum torrent encotrado')
+            else:
+                for i, t in enumerate(r):
+                    print(f'[{i}] {t['name']}')
                 print('='*30)
-                r = r[esco]
-                print(f'Nome: {r['name']}')
-                print(f'Velocidade: {r['dlspeed']/(3*1024):.2f}Mb/s')
-                print(f'Progresso: {r['progress']*100:.2f}%')
-                print(f'Estado: {r['state']}')
-                print('='*30)
-                print('[0] Sair')
-                print('[1] Pausar e deletar')
                 while True:
-                    try:
-                        esco = int(input('Escolha o que deseja fazer: '))
-                    except:
-                        print('Erro! Tente novamente')
-                    else:
+                    esco = str(input('Escolha um torrent para gerenciar, ou digite 00 para deletar todos os torrents: '))
+                    if esco == '00':
                         break
-                if esco == 1:
-                    torrent.parar(qbit, r['hash'])
+                    else:
+                        try:
+                            esco = int(esco)
+                        except KeyboardInterrupt:
+                            break
+                        except:
+                            print('Erro! Tente novamente')
+                        else:
+                            break
+                if esco == '00':
+                    for t in r:
+                        torrent.parar(qbit, t['hash'])
+                else:
+                    print('='*30)
+                    r = r[esco]
+                    print(f'Nome: {r['name']}')
+                    print(f'Velocidade: {r['dlspeed']/(3*1024):.2f}Mb/s')
+                    print(f'Progresso: {r['progress']*100:.2f}%')
+                    print(f'Estado: {r['state']}')
+                    print('='*30)
+                    print('[0] Sair')
+                    print('[1] Pausar e deletar')
+                    while True:
+                        try:
+                            esco = int(input('Escolha o que deseja fazer: '))
+                        except:
+                            print('Erro! Tente novamente')
+                        else:
+                            break
+                    if esco == 1:
+                        torrent.parar(qbit, r['hash'])

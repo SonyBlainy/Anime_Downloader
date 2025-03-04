@@ -13,7 +13,6 @@ def login() -> requests.Session:
     header = {'Referer': 'http://127.0.0.1:8080'}
     l = sessao.post(api_url+'auth/login', data=para, headers=header)
     if l.status_code != 200:
-        print('Erro ao fazer Login')
         return None
     else:
         return sessao

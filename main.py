@@ -1,22 +1,14 @@
-import platform
 import os
-if platform.system() == 'Linux':
-    if not os.path.isdir('/home/sony/animes'):
-        os.mkdir('/home/sony/animes')
-    if not os.path.isdir('/home/sony/.save'):
-        os.mkdir('/home/sony/.save')
-    os.environ['caminho'] = '/home/sony/animes'
-    os.environ['save'] = '/home/sony/.save'
-    os.environ['pc'] = 'Linux'
-else:
-    if not os.path.isdir(rf'C:\Users\{os.getlogin()}\Desktop\Animes'):
-        os.mkdir(rf'C:\Users\{os.getlogin()}\Desktop\Animes')
-    if not os.path.isdir(os.path.expandvars(r'%LOCALAPPDATA%\Anime_downloader')):
-        os.mkdir(os.path.expandvars(r'%LOCALAPPDATA%\Anime_downloader'))
-    os.environ['pc'] = 'Windows'
-    os.environ['save'] = os.path.expandvars(r'%LOCALAPPDATA%\Anime_downloader')
-    os.environ['caminho'] = rf'C:\Users\{os.getlogin()}\Desktop\Animes'
+def configurar_diretorios():
+    caminhos = {'animes': os.path.join('C:\Users', os.getlogin(), 'Desktop', 'Animes'),
+                'save': os.path.expandvars(r'%LOCALAPPDATA%\Anime_downloader')}
+    for pasta in caminhos.values():
+        if not os.path.isdir(pasta):
+            os.mkdir(pasta)
+    os.environ.update({'caminho': caminhos['animes'], 'save': caminhos['save']})
+configurar_diretorios()
 import logging
+from fera.animes_geral import obter_escolha_valida as ob
 logging.basicConfig(filename='log.log', filemode='w', level=logging.DEBUG)
 from sakura import Sakura
 from fera import animes_geral
@@ -24,42 +16,23 @@ from fera import baixando
 from bakashi import bakashi_anime
 from erai import nyaa
 from erai import torrent
-
 sair = False
 
+def menu():
+    print('='*30, 'MENU'.center(30), '='*30, '[1] Pesquisar um anime', '[2] Listar episódios baixados',
+          '[3] Qbit', '[0] Sair', sep='\n')
+
 while not sair:
-    print('='*30)
-    print('MENU'.center(30))
-    print('='*30)
-    print('[1] Pesquisar um anime')
-    print('[2] Listar episódios baixados')
-    print('[3] Qbit')
-    print('[0] Sair')
-    print('='*30)
-    while True:
-        try:
-            esco = int(input('Escolha uma opção: '))
-        except:
-            print('Erro! tente novamente')
-        else:
-            break
+    texto = 'Digite o anime que deseja baixar ou digite sair: '
+    menu()
+    esco = ob('Escolha um opção: ', (0,3))
     if esco == 0:
         sair = True
     elif esco == 1:
-        print('='*30)
-        print('[1] Sakura')
-        print('[2] Bakashi')
-        print('[3] Erai')
-        while True:
-            try:
-                esco = int(input('Escolha em site deseja pesquisar: '))
-            except:
-                print('Erro! Tente novamente')
-            else:
-                if esco >= 1 and esco <= 3:
-                    break
-                else:
-                    print('Erro! Opção inválida')
+        print('='*30, '[1] Sakura', '[2] Bakashi', '[3] Erai', sep='\n')
+        esco = ob('Escolha em qual site deseja pesquisar: ', (1, 3), True)
+        if not esco:
+            continue
         if esco == 1:
             nome = str(input('Digite o nome do anime: '))
             resul = Sakura.pesquisar_anime(nome)
@@ -69,20 +42,7 @@ while not sair:
                 print('='*30)
                 for i, a in enumerate(resul):
                     print(f'[{i}] {a.nome}')
-                while True:
-                    esco = str(input('Escolha o anime que deseja baixar ou digite sair: '))
-                    try:
-                        esco = int(esco)
-                    except:
-                        if esco.upper() == 'SAIR':
-                            break
-                        else:
-                            print('Erro! Tente novamente')
-                    else:
-                        if esco >= 0 and esco < len(resul):
-                            break
-                        else:
-                            print('Erro! Opção inválida')
+                esco = ob(texto, (0, len(resul)), True)
                 if type(esco) == int:
                     anime = resul[esco]
                     anime.eps()
@@ -113,17 +73,7 @@ while not sair:
                 print('='*30)
                 for i, a in enumerate(animes):
                     print(f'[{i}] {a.nome}')
-                while True:
-                    try:
-                        esco = str(input('Escolha o anime que deseja baixar ou digite sair: '))
-                        esco = int(esco)
-                    except:
-                        if esco.upper() == 'SAIR':
-                            break
-                        else:
-                            print('Erro! Tente novamente')
-                    else:
-                        break
+                esco = ob(texto, (0, len(animes)), True)
                 if type(esco) == int:
                     anime = animes[esco]
                     anime = bakashi_anime.episodios(anime)
@@ -151,17 +101,7 @@ while not sair:
                 print('='*30)
                 for n, anime in enumerate(animes.keys()):
                     print(f'[{n}] {anime}')
-                while True:
-                    try:
-                        esco = str(input('Escolha o anime que deseja baixar ou digite sair: '))
-                        esco = int(esco)
-                    except:
-                        if esco.upper() == 'SAIR':
-                            break
-                        else:
-                            print('Erro! Tente novamente')
-                    else:
-                        break
+                esco = ob(texto, (0, len(animes)), True)
                 if type(esco) == int:
                     eps = animes[list(animes.keys())[esco]]
                     anime = Sakura.Anime(list(animes.keys())[esco], 'sim')
@@ -228,17 +168,7 @@ while not sair:
                     print('='*30)
                     for n, anime in enumerate(animes.keys()):
                         print(f'[{n}] {anime}')
-                    while True:
-                        try:
-                            esco = str(input('Escolha o anime que deseja baixar ou digite sair: '))
-                            esco = int(esco)
-                        except:
-                            if esco.upper() == 'SAIR':
-                                break
-                            else:
-                                print('Erro! Tente novamente')
-                        else:
-                            break
+                    esco = ob(texto, (0, len(animes)), True)
                     if type(esco) == int:
                         eps = animes[list(animes.keys())[esco]]
                         anime = Sakura.Anime(list(animes.keys())[esco], 'sim')
@@ -286,19 +216,9 @@ while not sair:
                 else:
                     print('='*30)
                     r = r[esco]
-                    print(f'Nome: {r['name']}')
-                    print(f'Velocidade: {r['dlspeed']/(3*1024):.2f}Mb/s')
-                    print(f'Progresso: {r['progress']*100:.2f}%')
-                    print(f'Estado: {r['state']}')
-                    print('='*30)
-                    print('[0] Sair')
-                    print('[1] Pausar e deletar')
-                    while True:
-                        try:
-                            esco = int(input('Escolha o que deseja fazer: '))
-                        except:
-                            print('Erro! Tente novamente')
-                        else:
-                            break
+                    print(f'Nome: {r['name']}', f'Velocidade: {r['dlspeed']/(1024**2):.2f}MB/s',
+                          f'Progresso: {r['progress']*100:.2f}%', f'Estado: {r['state']}', sep='\n')
+                    print('='*30, '[0] Sair', '[1] Pausar e deletar', sep='\n')
+                    esco = ob('Escolha o que deseja fazer: ', (0, 1))
                     if esco == 1:
                         torrent.parar(qbit, r['hash'])

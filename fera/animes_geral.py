@@ -11,20 +11,7 @@ def listar():
             print('='*30)
             for indice, e in enumerate(lista):
                 print(f'[{indice}] {e.name}')
-            while True:
-                n = str(input('Escolha um anime ou digite sair: '))
-                try:
-                    n = int(n)
-                except:
-                    if n.upper() == 'SAIR':
-                        break
-                    else:
-                        print('Erro! Tente novamente')
-                else:
-                    if n >= 0 and n < len(lista):
-                        break
-                    else:
-                        print('Erro! Opção de anime incorreta')
+            n = obter_escolha_valida('Escolha um anime ou digite sair: ', (0, len(lista)), True)
             if type(n) == int:
                 with os.scandir(path) as ent2:
                     print('='*30)
@@ -43,7 +30,7 @@ def listar():
                                         elif numero.upper() == 'BAIXAR':
                                             anime_nome = e.path.split('\\')[-1]
                                             try:
-                                                with open(save+'\\'+anime_nome+'\\save.txt', 'rb') as arquivo:
+                                                with open(os.path.join(save, anime_nome, 'save.txt'), 'rb') as arquivo:
                                                     dados = pickle.load(arquivo)
                                             except:
                                                 print('Arquivo não existe, baixe um episódio do anime para crialo')
@@ -61,23 +48,31 @@ def listar():
                                     else:
                                         for ii, ep in enumerate(os.scandir(e.path)):
                                             if ii == numero:
-                                                os.system(f"powershell.exe -Command \"start '{ep.path}'\"")
+                                                os.startfile(ep.path)
             else:
                 listar_animes = False
                                 
 def verifica(anime) -> None:
     nome = '_'.join(anime.nome.split())
-    if os.getenv('pc') == 'Linux':
-        if not os.path.isdir(path+'/'+nome):
-            os.mkdir(path+'/'+nome)
-        if not os.path.isdir(save+'/'+nome):
-            os.mkdir(save+'/'+nome)
-            with open(save+'/'+nome+'/'+'save.txt', 'wb') as arquivo:
-                pickle.dump(anime, arquivo)
-    else:
-        if not os.path.isdir(path+'\\'+nome):
-            os.mkdir(path+'\\'+nome)
-        if not os.path.isdir(save+'\\'+nome):
-            os.mkdir(save+'\\'+nome)
-            with open(save+'\\'+nome+'\\'+'save.txt', 'wb') as arquivo:
-                pickle.dump(anime, arquivo)
+    anime_path = os.path.join(path, nome)
+    save_path = os.path.join(save, nome)
+    for d in (anime_path, save_path):
+        os.makedirs(d, exist_ok=True)
+    save_file = os.path.join(save_path, 'save.txt')
+    if not os.path.isfile(save_file):
+        with open(save_file, 'wb') as arquivo:
+            pickle.dump(anime, arquivo)
+
+def obter_escolha_valida(prompt, intervalo=None, sair_opcional=False):
+    while True:
+        escolha = input(prompt)
+        if sair_opcional and escolha.upper() == 'SAIR':
+            return False
+        try:
+            escolha = int(escolha)
+            if intervalo and escolha not in range(intervalo[0], intervalo[1]+1):
+                print('Erro! Opção inválida')
+                continue
+            return escolha
+        except:
+            print('Erro! Tente novamente')

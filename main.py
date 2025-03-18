@@ -1,6 +1,6 @@
 import os
 def configurar_diretorios():
-    caminhos = {'animes': os.path.join('C:\Users', os.getlogin(), 'Desktop', 'Animes'),
+    caminhos = {'animes': os.path.join(r'C:\Users', os.getlogin(), 'Desktop', 'Animes'),
                 'save': os.path.expandvars(r'%LOCALAPPDATA%\Anime_downloader')}
     for pasta in caminhos.values():
         if not os.path.isdir(pasta):
@@ -9,7 +9,16 @@ def configurar_diretorios():
 configurar_diretorios()
 import logging
 from fera.animes_geral import obter_escolha_valida as ob
-logging.basicConfig(filename='log.log', filemode='w', level=logging.DEBUG)
+
+class CustomHandler(logging.Handler):
+    def emit(self, record):
+        if record.levelno >= logging.ERROR:
+            os.startfile('log.log')
+            quit()
+logging.basicConfig(filename='log.log', filemode='w', level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
+logger.addHandler(CustomHandler())
 from sakura import Sakura
 from fera import animes_geral
 from fera import baixando
@@ -23,7 +32,9 @@ def menu():
           '[3] Qbit', '[0] Sair', sep='\n')
 
 while not sair:
+    t = 'Download encerrado pelo usuario'
     texto = 'Digite o anime que deseja baixar ou digite sair: '
+    nenhum = 'Nenhum anime encontrado'
     menu()
     esco = ob('Escolha um opção: ', (0,3))
     if esco == 0:
@@ -37,7 +48,8 @@ while not sair:
             nome = str(input('Digite o nome do anime: '))
             resul = Sakura.pesquisar_anime(nome)
             if resul == []:
-                print('Nenhum anime encontrado')
+                logging.warning(nenhum)
+                print(nenhum)
             else:
                 print('='*30)
                 for i, a in enumerate(resul):
@@ -47,7 +59,9 @@ while not sair:
                     anime = resul[esco]
                     anime.eps()
                     if anime.ep == None:
-                        print('Erro ao tentar obter o link para download ou pasta de download')
+                        erro = 'Erro ao tentar obter o link para download ou pasta de download'
+                        logging.error(erro)
+                        print(erro)
                     else:
                         anime.listar()
                         if type(anime.ep) == list:
@@ -57,18 +71,23 @@ while not sair:
                                 copia.trat()
                                 try:
                                     Sakura.mediafire(copia)
+                                    logging.info(f'Episodio {copia.ep.nome} baixado')
                                 except KeyboardInterrupt:
-                                    print('Download encerrado pelo usuario')
+                                    logging.info(t)
+                                    print(t)
                         else:
                             try:
                                 Sakura.mediafire(anime)
+                                logging.info(f'Episodio {anime.ep.nome} baixado')
                             except KeyboardInterrupt:
-                                print('Download encerrado pelo usuario')
+                                logging.info(t)
+                                print(t)
         elif esco == 2:
             nome = str(input('Digite o nome do anime: '))
             animes = bakashi_anime.pesquisar(nome)
             if len(animes) == 0:
-                print('Nenhum anime encontrado')
+                logging.warning(nenhum)
+                print(nenhum)
             else:
                 print('='*30)
                 for i, a in enumerate(animes):
@@ -84,19 +103,24 @@ while not sair:
                             copia.ep = ep
                             copia.trat()
                             try:
-                                baixando.baixarar(anime)
+                                baixando.baixarar(copia)
+                                logging.info(f'Episodio {copia.ep.nome} baixado')
                             except KeyboardInterrupt:
-                                print('Download encerrado pelo usuario')
+                                logging.info(t)
+                                print(t)
                     else:
                         try:
                             baixando.baixarar(anime)
+                            logging.info(f'Episodio {anime.ep.nome} baixado')
                         except KeyboardInterrupt:
-                            print('Download encerrado pelo usuario')
+                            logging.info(t)
+                            print(t)
         elif esco == 3:
             nome = str(input('Digite o nome do anime: '))
             animes = nyaa.pesquisar(nome)
             if len(animes) == 0:
-                print('Nenhum anime encontrado')
+                logging.warning(nenhum)
+                print(nenhum)
             else:
                 print('='*30)
                 for n, anime in enumerate(animes.keys()):
@@ -115,9 +139,11 @@ while not sair:
                             copia.ep = ep
                             copia.trat()
                             torrent.baixar(copia, qbit)
+                            logging.info(f'Episodio {copia.ep.nome} baixado')
                     else:
                         qbit = torrent.login()
                         torrent.baixar(anime, qbit)
+                        logging.info(f'Episodio {anime.ep.nome} baixado')
     elif esco == 2:
         r = animes_geral.listar()
         if r != None:
@@ -130,19 +156,25 @@ while not sair:
                         copia.ep = ep
                         copia.trat()
                         try:
-                            baixando.baixarar(anime)
+                            baixando.baixarar(copia)
+                            logging.info(f'Episodio {copia.ep.nome} baixado')
                         except KeyboardInterrupt:
-                            print('Download encerrado pelo usuario')
+                            logging.info(t)
+                            print(t)
                 else:
                     try:
                         baixando.baixarar(anime)
+                        logging.info(f'Episodio {anime.ep.nome} baixado')
                     except KeyboardInterrupt:
-                        print('Download encerrado pelo usuario')
+                        logging.info(t)
+                        print(t)
             elif r.site == 'Sakura':
                 anime = r
                 anime.eps()
                 if anime.ep == None:
-                    print('Erro ao tentar obter o link para download')
+                    erro = 'Erro ao tentar obter o link para download'
+                    logging.error(erro)
+                    print(erro)
                 else:
                     anime.listar()
                     if type(anime.ep) == list:
@@ -152,18 +184,23 @@ while not sair:
                             copia.trat()
                             try:
                                 Sakura.mediafire(copia)
+                                logging.info(f'Episodio {copia.ep.nome} baixado')
                             except KeyboardInterrupt:
-                                print('Download encerrado pelo usuario')
+                                logging.info(t)
+                                print(t)
                     else:
                         try:
                             Sakura.mediafire(anime)
+                            logging.info(f'Episodio {anime.ep.nome} baixado')
                         except KeyboardInterrupt:
-                            print('Download encerrado pelo usuario')
+                            logging.info(t)
+                            print(t)
             elif r.site.split('_')[0] == 'Erai':
                 nome = r.site.split('_')[1].strip()
                 animes = nyaa.pesquisar(nome)
                 if len(animes) == 0:
-                    print('Nenhum anime encontrado')
+                    logging.warning(nenhum)
+                    print(nenhum)
                 else:
                     print('='*30)
                     for n, anime in enumerate(animes.keys()):
@@ -182,17 +219,23 @@ while not sair:
                                 copia.ep = ep
                                 copia.trat()
                                 torrent.baixar(copia, qbit)
+                                logging.info(f'Episodio {copia.ep.nome} baixado')
                         else:
                             qbit = torrent.login()
                             torrent.baixar(anime, qbit)
+                            logging.info(f'Episodio {anime.ep.nome} baixado')
     elif esco == 3:
         qbit = torrent.login()
         if qbit == None:
-            print('Erro ao fazer login')
+            erro = 'Erro ao fazer login'
+            logging.error(erro)
+            print(erro)
         else:
             r = torrent.infos(qbit)
             if r == []:
-                print('Nenhum torrent encotrado')
+                n = 'Nenhum torrent encotrado'
+                logging.warning(n)
+                print(n)
             else:
                 for i, t in enumerate(r):
                     print(f'[{i}] {t['name']}')
@@ -213,6 +256,7 @@ while not sair:
                 if esco == '00':
                     for t in r:
                         torrent.parar(qbit, t['hash'])
+                    logging.info('Todos os torrents encerrados')
                 else:
                     print('='*30)
                     r = r[esco]
@@ -222,3 +266,4 @@ while not sair:
                     esco = ob('Escolha o que deseja fazer: ', (0, 1))
                     if esco == 1:
                         torrent.parar(qbit, r['hash'])
+                        logging.info(f'Torrent {r['name']} encerrado')

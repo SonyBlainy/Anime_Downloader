@@ -55,16 +55,16 @@ while not sair:
                 for i, a in enumerate(resul):
                     print(f'[{i}] {a.nome}')
                 esco = ob(texto, (0, len(resul)), True)
-                if type(esco) == int:
+                if isinstance(esco, int):
                     anime = resul[esco]
-                    anime.eps()
+                    anime.ep = Sakura.listar_episodios(anime)
                     if anime.ep == None:
                         erro = 'Erro ao tentar obter o link para download ou pasta de download'
                         logging.error(erro)
                         print(erro)
                     else:
                         anime.listar()
-                        if type(anime.ep) == list:
+                        if isinstance(anime.ep, list):
                             copia = anime
                             for ep in anime.ep:
                                 copia.ep = ep
@@ -93,11 +93,11 @@ while not sair:
                 for i, a in enumerate(animes):
                     print(f'[{i}] {a.nome}')
                 esco = ob(texto, (0, len(animes)), True)
-                if type(esco) == int:
+                if isinstance(esco, int):
                     anime = animes[esco]
                     anime = bakashi_anime.episodios(anime)
                     anime.listar()
-                    if type(anime.ep) == list:
+                    if isinstance(anime.ep, list):
                         copia = anime
                         for ep in anime.ep:
                             copia.ep = ep
@@ -126,13 +126,13 @@ while not sair:
                 for n, anime in enumerate(animes.keys()):
                     print(f'[{n}] {anime}')
                 esco = ob(texto, (0, len(animes)), True)
-                if type(esco) == int:
+                if isinstance(esco, int):
                     eps = animes[list(animes.keys())[esco]]
                     anime = Sakura.Anime(list(animes.keys())[esco], 'sim')
                     eps = [Sakura.Ep('Episódio '+eps['eps'][e], eps['links'][e], eps['extensao'][e], 'Bakashi') for e in range(len(eps['eps'])-1, -1, -1)]
                     anime.ep = eps
                     anime.listar()
-                    if type(anime.ep) == list:
+                    if isinstance(anime.ep, list):
                         copia = anime
                         qbit = torrent.login()
                         for ep in anime.ep:
@@ -140,6 +140,8 @@ while not sair:
                             copia.trat()
                             torrent.baixar(copia, qbit)
                             logging.info(f'Episodio {copia.ep.nome} baixado')
+                    elif not anime.ep:
+                        pass
                     else:
                         qbit = torrent.login()
                         torrent.baixar(anime, qbit)
@@ -150,7 +152,7 @@ while not sair:
             if r.site == 'Bakashi':
                 anime = bakashi_anime.episodios(r)
                 anime.listar()
-                if type(anime.ep) == list:
+                if isinstance(anime.ep, list):
                     copia = anime
                     for ep in anime.ep:
                         copia.ep = ep
@@ -170,14 +172,14 @@ while not sair:
                         print(t)
             elif r.site == 'Sakura':
                 anime = r
-                anime.eps()
+                anime.ep = Sakura.listar_episodios(anime)
                 if anime.ep == None:
                     erro = 'Erro ao tentar obter o link para download'
                     logging.error(erro)
                     print(erro)
                 else:
                     anime.listar()
-                    if type(anime.ep) == list:
+                    if isinstance(anime.ep, list):
                         copia = anime
                         for ep in anime.ep:
                             copia.ep = ep
@@ -206,13 +208,13 @@ while not sair:
                     for n, anime in enumerate(animes.keys()):
                         print(f'[{n}] {anime}')
                     esco = ob(texto, (0, len(animes)), True)
-                    if type(esco) == int:
+                    if isinstance(esco, int):
                         eps = animes[list(animes.keys())[esco]]
                         anime = Sakura.Anime(list(animes.keys())[esco], 'sim')
                         eps = [Sakura.Ep('Episódio '+eps['eps'][e], eps['links'][e], eps['extensao'][e], 'Bakashi') for e in range(len(eps['eps'])-1, -1, -1)]
                         anime.ep = eps
                         anime.listar()
-                        if type(anime.ep) == list:
+                        if isinstance(anime.ep, list):
                             copia = anime
                             qbit = torrent.login()
                             for ep in anime.ep:

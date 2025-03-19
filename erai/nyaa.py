@@ -37,6 +37,7 @@ def pesquisar(nome:str):
                 logging.info(f'Pagina número {contador} analisada, {len(resultado)} animes encontrados atualmente')
     else:
         resultado = busca(r)
+        logging.info(f'Pagina analisada, {len(resultado)} animes encontrados')
     return resultado
 
 def extrair_nome(nome):
@@ -63,7 +64,6 @@ def extrair_nome(nome):
             colchetes = colchetes[0].split()
             for i in copia:
                 colchetes.append(i)
-        print(colchetes)
         ep = ep.split()[0]
         logging.info(f'Informacoes do episodio {ep} do anime {anime_nome} extraidas')
         return [anime_nome, ep, colchetes]

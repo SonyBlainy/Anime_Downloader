@@ -33,11 +33,13 @@ class Anime:
                     print('Erro! Tente novamente')
         if isinstance(esco, int):
             self.ep = self.ep[esco]
+            logging.info(f'Episodio numero {self.ep.nome.split()[1]} escolhido para download')
             self.trat()
         elif not self.ep:
             pass
         else:
             self.ep = [self.ep[int(e)] for e in esco.split('-')]
+            logging.info(f'Episodios '+', '.join([nep.nome.split()[1] for nep in self.ep])+'escolhidos para download')
 
     def trat(self):
         self = tratar(self, self.ep.estensao)
@@ -51,21 +53,20 @@ class Ep:
         self.server = server
         self.caminho = None
 
-def tratar(anime, estensao=None):
-    nome = anime.nome
-    nome = nome.split()
-    limpo = []
-    for palavra in nome:
-        limpo.append(''.join([letra for letra in palavra if letra not in [':', '°', '?', '-', ',', '“', '”', '.']]))
-    limpo = ' '.join(limpo)
+def tratar_nome(anime):
+    lista_negra = [':', '°', '?', '-', ',', '“', '”', '.']
+    limpo = ' '.join([''.join([letra for letra in palavra if letra not in lista_negra]) for palavra in anime.nome.split()])
+    base_path = os.path.join(path, '_'.join(limpo.split()))
     anime.nome = limpo
-    servers = ['Mediafire', 'Fire', 'Bakashi']
+    logging.info(f'Nome do anime {limpo} tratado')
+    anime.ep.caminho = base_path
+    logging.info(f'Path do anime {limpo} gerado')
+    return anime
+
+def tratar(anime, estensao=None):
+    anime = tratar_nome(anime)
+    servers = ['Mediafire', 'Bakashi']
     if anime.ep.server in servers:
-        anime.ep.nome = '_'.join(anime.nome.split())+'_'+'_'.join(anime.ep.nome.split())+estensao
-        if os.getenv('pc') == 'Linux':
-            anime.ep.caminho = path+'/'+'_'.join(anime.nome.split())+'/'
-        else:
-            anime.ep.caminho = path+'\\'+'_'.join(anime.nome.split())+'\\'
         anime.ep.erro = False
         return anime
     else:

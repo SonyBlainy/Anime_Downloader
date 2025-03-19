@@ -25,6 +25,7 @@ from fera import baixando
 from bakashi import bakashi_anime
 from erai import nyaa
 from erai import torrent
+from drivee.core import Anime, Ep
 sair = False
 
 def menu():
@@ -128,8 +129,8 @@ while not sair:
                 esco = ob(texto, (0, len(animes)), True)
                 if isinstance(esco, int):
                     eps = animes[list(animes.keys())[esco]]
-                    anime = Sakura.Anime(list(animes.keys())[esco], 'sim')
-                    eps = [Sakura.Ep('Episódio '+eps['eps'][e], eps['links'][e], eps['extensao'][e], 'Bakashi') for e in range(len(eps['eps'])-1, -1, -1)]
+                    anime = Anime(list(animes.keys())[esco], 'sim')
+                    eps = [Ep('Episódio '+eps['eps'][e], eps['links'][e], eps['extensao'][e], 'Bakashi') for e in range(len(eps['eps'])-1, -1, -1)]
                     anime.ep = eps
                     anime.listar()
                     if isinstance(anime.ep, list):
@@ -139,13 +140,13 @@ while not sair:
                             copia.ep = ep
                             copia.trat()
                             torrent.baixar(copia, qbit)
-                            logging.info(f'Episodio {copia.ep.nome} baixado')
+                            logging.info(f'Episodio {copia.ep.nome.split()[1]} baixado')
                     elif not anime.ep:
                         pass
                     else:
                         qbit = torrent.login()
                         torrent.baixar(anime, qbit)
-                        logging.info(f'Episodio {anime.ep.nome} baixado')
+                        logging.info(f'Episodio {anime.ep.nome.split()[1]} baixado')
     elif esco == 2:
         r = animes_geral.listar()
         if r != None:
@@ -210,8 +211,8 @@ while not sair:
                     esco = ob(texto, (0, len(animes)), True)
                     if isinstance(esco, int):
                         eps = animes[list(animes.keys())[esco]]
-                        anime = Sakura.Anime(list(animes.keys())[esco], 'sim')
-                        eps = [Sakura.Ep('Episódio '+eps['eps'][e], eps['links'][e], eps['extensao'][e], 'Bakashi') for e in range(len(eps['eps'])-1, -1, -1)]
+                        anime = Anime(list(animes.keys())[esco], 'sim')
+                        eps = [Ep('Episódio '+eps['eps'][e], eps['links'][e], eps['extensao'][e], 'Bakashi') for e in range(len(eps['eps'])-1, -1, -1)]
                         anime.ep = eps
                         anime.listar()
                         if isinstance(anime.ep, list):
@@ -221,11 +222,11 @@ while not sair:
                                 copia.ep = ep
                                 copia.trat()
                                 torrent.baixar(copia, qbit)
-                                logging.info(f'Episodio {copia.ep.nome} baixado')
+                                logging.info(f'Episodio {copia.ep.nome.split()[1]} baixado')
                         else:
                             qbit = torrent.login()
                             torrent.baixar(anime, qbit)
-                            logging.info(f'Episodio {anime.ep.nome} baixado')
+                            logging.info(f'Episodio {anime.ep.nome.split()[1]} baixado')
     elif esco == 3:
         qbit = torrent.login()
         if qbit == None:

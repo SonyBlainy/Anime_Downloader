@@ -1,8 +1,7 @@
 from selenium import webdriver
+from drivee.core import Anime, Ep
 import requests
 from lxml.html import fromstring
-from drivee.trat import tratar
-from fera.animes_geral import verifica
 from fera import baixando
 from ouo_bypass import ouo_bypass
 from selenium.webdriver.common.by import By
@@ -17,49 +16,6 @@ ops.add_argument('--headless')
 ops.add_argument('--window-size=1366,768')
 ops.add_argument('--disable-popup-blocking')
 server = FirefoxService()
-
-
-class Anime:
-    def __init__(self, nome, link):
-        self.nome = nome
-        self.link = link
-    def eps(self):
-        self.ep = listar_episodios(self)
-    def listar(self):
-        print('='*30)
-        for i, ep in enumerate(self.ep):
-            print(f'[{i}] {ep.nome}')
-        while True:
-            try:
-                esco = str(input('Escolha qual episódio deseja baixar: '))
-                esco = int(esco)
-            except:
-                if esco.upper() == 'SAIR':
-                    break
-                elif '-' in esco:
-                    break
-                else:
-                    print('Erro! Tente novamente')
-            else:
-                if esco >= 0 and esco <= len(self.ep)-1:
-                    break
-                else:
-                    print('Erro! Tente novamente')
-        if type(esco) == int:
-            self.ep = self.ep[esco]
-            self.trat()
-        else:
-            self.ep = [self.ep[int(e)] for e in esco.split('-')]
-    def trat(self):
-        self = tratar(self, self.ep.estensao)
-        verifica(self)
-class Ep:
-    def __init__(self, nome, link, estensao, server):
-        self.nome = nome
-        self.link = link
-        self.estensao = estensao
-        self.server = server
-
 
 def pesquisar_anime(anime):
     with webdriver.Firefox(ops, server) as navegador:

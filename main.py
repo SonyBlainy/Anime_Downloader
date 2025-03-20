@@ -26,6 +26,7 @@ from bakashi import bakashi_anime
 from erai import nyaa
 from erai import torrent
 from drivee.core import Anime, Ep
+from drivee import core
 sair = False
 
 def menu():
@@ -119,34 +120,11 @@ while not sair:
         elif esco == 3:
             nome = str(input('Digite o nome do anime: '))
             animes = nyaa.pesquisar(nome)
-            if len(animes) == 0:
-                logging.warning(nenhum)
-                print(nenhum)
+            anime = core.escolher_animes_erai(animes)
+            if not anime:
+                continue
             else:
-                print('='*30)
-                for n, anime in enumerate(animes.keys()):
-                    print(f'[{n}] {anime}')
-                esco = ob(texto, (0, len(animes)), True)
-                if isinstance(esco, int):
-                    eps = animes[list(animes.keys())[esco]]
-                    anime = Anime(list(animes.keys())[esco], 'sim')
-                    eps = [Ep('Episódio '+eps['eps'][e], eps['links'][e], eps['extensao'][e], 'Bakashi') for e in range(len(eps['eps'])-1, -1, -1)]
-                    anime.ep = eps
-                    anime.listar()
-                    if isinstance(anime.ep, list):
-                        copia = anime
-                        qbit = torrent.login()
-                        for ep in anime.ep:
-                            copia.ep = ep
-                            copia.trat()
-                            torrent.baixar(copia, qbit)
-                            logging.info(f'Episodio {copia.ep.nome.split()[1]} baixado')
-                    elif not anime.ep:
-                        pass
-                    else:
-                        qbit = torrent.login()
-                        torrent.baixar(anime, qbit)
-                        logging.info(f'Episodio {anime.ep.nome.split()[1]} baixado')
+                nyaa.baixar_anime(anime)
     elif esco == 2:
         r = animes_geral.listar()
         if r != None:
@@ -200,42 +178,21 @@ while not sair:
                             print(t)
             elif r.site.split('_')[0] == 'Erai':
                 nome = r.site.split('_')[1].strip()
-                animes = nyaa.pesquisar(nome)
-                if len(animes) == 0:
-                    logging.warning(nenhum)
-                    print(nenhum)
+                anime = nyaa.pesquisar(nome)
+                anime = core.escolher_animes_erai(anime)
+                if not anime:
+                    continue
                 else:
-                    print('='*30)
-                    for n, anime in enumerate(animes.keys()):
-                        print(f'[{n}] {anime}')
-                    esco = ob(texto, (0, len(animes)), True)
-                    if isinstance(esco, int):
-                        eps = animes[list(animes.keys())[esco]]
-                        anime = Anime(list(animes.keys())[esco], 'sim')
-                        eps = [Ep('Episódio '+eps['eps'][e], eps['links'][e], eps['extensao'][e], 'Bakashi') for e in range(len(eps['eps'])-1, -1, -1)]
-                        anime.ep = eps
-                        anime.listar()
-                        if isinstance(anime.ep, list):
-                            copia = anime
-                            qbit = torrent.login()
-                            for ep in anime.ep:
-                                copia.ep = ep
-                                copia.trat()
-                                torrent.baixar(copia, qbit)
-                                logging.info(f'Episodio {copia.ep.nome.split()[1]} baixado')
-                        else:
-                            qbit = torrent.login()
-                            torrent.baixar(anime, qbit)
-                            logging.info(f'Episodio {anime.ep.nome.split()[1]} baixado')
+                    nyaa.baixar_anime(anime)
     elif esco == 3:
-        qbit = torrent.login()
-        if qbit == None:
+        qbit = torrent.Qbit()
+        if not qbit.sessao:
             erro = 'Erro ao fazer login'
             logging.error(erro)
             print(erro)
         else:
-            r = torrent.infos(qbit)
-            if r == []:
+            r = qbit.infos()
+            if not r:
                 n = 'Nenhum torrent encotrado'
                 logging.warning(n)
                 print(n)
@@ -257,8 +214,7 @@ while not sair:
                         else:
                             break
                 if esco == '00':
-                    for t in r:
-                        torrent.parar(qbit, t['hash'])
+                    qbit.parar(tudo=True)
                     logging.info('Todos os torrents encerrados')
                 else:
                     print('='*30)
@@ -268,5 +224,5 @@ while not sair:
                     print('='*30, '[0] Sair', '[1] Pausar e deletar', sep='\n')
                     esco = ob('Escolha o que deseja fazer: ', (0, 1))
                     if esco == 1:
-                        torrent.parar(qbit, r['hash'])
+                        qbit.parar(r['hash'])
                         logging.info(f'Torrent {r['name']} encerrado')

@@ -1,14 +1,14 @@
-import requests
+from fera.animes_geral import obter_escolha_valida as ob
 import logging
 from fera.animes_geral import verifica
-from lxml.html import fromstring
 import os
 
 path = os.getenv('caminho')
 save = os.getenv('save')
 
 class Anime:
-    def __init__(self, nome, link):
+    def __init__(self, nome, link=None):
+        self.nome_pesquisa = None
         self.nome = nome
         self.link = link
         self.ep = None
@@ -34,53 +34,50 @@ class Anime:
         if isinstance(esco, int):
             self.ep = self.ep[esco]
             logging.info(f'Episodio numero {self.ep.nome.split()[1]} escolhido para download')
-            self.trat()
+            self = tratar_nome(self)
+            verifica(self)
         elif not self.ep:
             pass
         else:
             self.ep = [self.ep[int(e)] for e in esco.split('-')]
             logging.info(f'Episodios '+', '.join([nep.nome.split()[1] for nep in self.ep])+'escolhidos para download')
 
-    def trat(self):
-        self = tratar(self, self.ep.estensao)
-        verifica(self)
-        
+ 
 class Ep:
-    def __init__(self, nome, link, estensao, server):
+    def __init__(self, nome, link, estensao=None, server=None):
         self.nome = nome
         self.link = link
         self.estensao = estensao
         self.server = server
         self.caminho = None
 
-def tratar_nome(anime):
+def tratar_nome(anime: Anime):
     lista_negra = [':', '°', '?', '-', ',', '“', '”', '.']
     limpo = ' '.join([''.join([letra for letra in palavra if letra not in lista_negra]) for palavra in anime.nome.split()])
     base_path = os.path.join(path, '_'.join(limpo.split()))
+    anime.nome_pesquisa = anime.nome
     anime.nome = limpo
     logging.info(f'Nome do anime {limpo} tratado')
     anime.ep.caminho = base_path
     logging.info(f'Path do anime {limpo} gerado')
     return anime
 
-def tratar(anime, estensao=None):
-    anime = tratar_nome(anime)
-    servers = ['Mediafire', 'Bakashi']
-    if anime.ep.server in servers:
-        anime.ep.erro = False
-        return anime
+def escolher_animes_erai(animes: dict):
+    if not animes:
+        logging.warning('Nenhum anime encontrado')
+        print('Nenhum anime encontrado')
+        return None
     else:
-        r = requests.get(anime.ep.link)
-        html = fromstring(r.content)
-        estensao = html.findtext('.//title')
-        try:
-            estensao = estensao.split()
-            estensao = estensao[-4].split('.')[-1]
-        except:
-            anime.ep.erro = True
-            return anime
-        else:
-            anime.ep.nome = '_'.join(anime.nome.split())+'_'+'_'.join(anime.ep.nome.split())+f'.{estensao}'
-            anime.ep.caminho = path+'_'.join(anime.nome.split())
-            anime.ep.erro = False
-            return anime
+        print('='*30)
+        for i, anime in enumerate(animes.keys()):
+            print(f'[{i}] {anime}')
+        esco = ob('Escolha o anime ou digite sair: ', (0, len(animes)), True)
+        if not isinstance(esco, int):
+            return None
+        anime = Anime(list(animes.keys())[esco], 'Erai')
+        eps = animes[list(animes.keys())[esco]]
+        eps = [Ep('Episódio '+eps['eps'][ep], eps['links'][ep]) for ep in range(len(eps['eps']))].__reversed__()
+        anime.ep = list(eps)
+        anime.listar()
+        return anime
+        

@@ -1,4 +1,5 @@
 import requests
+from erai import torrent
 import re
 from lxml.html import fromstring
 import os
@@ -77,7 +78,6 @@ def filtrar(info, lista, link):
                 ep = dict()
                 ep['eps'] = [info[1]]
                 ep['links'] = [link]
-                ep['extensao'] = ['.mkv']
                 lista[info[0]] = ep
     else:
         if info[1] in lista[info[0]]['eps']:
@@ -90,7 +90,6 @@ def filtrar(info, lista, link):
                 if 'Multiple Subtitle' in info[2] or 'MultiSub' in info[2] or 'POR-BR' in info[2]:
                     lista[info[0]]['eps'].append(info[1])
                     lista[info[0]]['links'].append(link)
-                    lista[info[0]]['extensao'].append('.mkv')
     return lista
 
 def busca(pagina, lista=None):
@@ -109,3 +108,14 @@ def busca(pagina, lista=None):
         else:
             continue
     return lista
+
+def baixar_anime(anime):
+    qbit = torrent.Qbit()
+    if isinstance(anime.ep, list):
+        logging.info(f'Baixando {len(anime.ep)} episodios')
+        for ep in anime.ep:
+            qbit.baixar(ep)
+            logging.info(f'Episodio {ep.nome.split()[1]} baixado')
+    else:
+        qbit.baixar(anime.ep)
+        logging.info(f'Episodio {anime.ep.nome.split()[1]} baixado')

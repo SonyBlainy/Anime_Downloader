@@ -37,8 +37,8 @@ def listar_episodios(anime_nome, anime_path):
                         with open(save_file, 'rb') as arquivo:
                             dados = pickle.load(arquivo)
                         link = dados.link
-                        if link == 'sim':
-                            dados.site = 'Erai_'+dados.nome
+                        if link == 'Erai':
+                            dados.site = 'Erai_'+dados.nome.pesquisa
                         elif 'bakashi' in link:
                             dados.site = 'Bakashi'
                         elif 'sakuraanimes' in link:

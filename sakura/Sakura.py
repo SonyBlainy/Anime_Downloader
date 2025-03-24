@@ -1,145 +1,86 @@
-from selenium import webdriver
+import random
+import json
+import cloudscraper
+import requests.cookies
 from drivee.core import Anime, Ep
 import requests
 from lxml.html import fromstring
-from fera import baixando
 from ouo_bypass import ouo_bypass
-from selenium.webdriver.common.by import By
-from selenium.webdriver import FirefoxOptions
-from selenium.webdriver import FirefoxService
-from time import sleep as mimir
 
-ops = FirefoxOptions()
-ops.log.level = 'trace'
-ops.add_argument('--blink-settings=imagesEnabled=false')
-ops.add_argument('--headless')
-ops.add_argument('--window-size=1366,768')
-ops.add_argument('--disable-popup-blocking')
-server = FirefoxService()
+def assinatura():
+    numero = random.random() + 1
+    base36 = format(int(numero*1e10), 'x')[2:7]
+    return base36
 
 def pesquisar_anime(anime):
-    with webdriver.Firefox(ops, server) as navegador:
-        navegador.get('https://www.sakuraanimes.com')
-        fecha = navegador.find_elements(By.CLASS_NAME, 'close')[-1]
-        navegador.execute_script('arguments[0].click()', fecha)
-        pesquisa = navegador.find_element(By.CLASS_NAME, 'mb-2')
-        pesquisa.send_keys(anime)
-        mimir(2)
-        animes = navegador.find_element(value='myUL').find_elements(By.TAG_NAME, 'li')
-        lista = []
-        for anime in animes:
-            link = anime.find_element(By.TAG_NAME, 'a')
-            nome = link.text.strip()
-            nome = nome.split('-')[0].strip()
-            link = link.get_attribute('href')
-            a = Anime(nome, link)
-            lista.append(a)
-    return lista
+    sessao = requests.Session()
+    pagina = fromstring(sessao.get('https://www.sakuraanimes.com').content)
+    csrf_token = pagina.find('head/meta[@name="csrf-token"]').get('content')
+    wire_data = pagina.find_class('col-lg-9 bg-default')[0].find('div/div').get('wire:initial-data')
+    wire_data = json.loads(wire_data)
+    update = [{'type': 'syncInput', 'payload': {'id': assinatura(), 'name': 'search', 'value': anime}}]
+    fingerprint = wire_data['fingerprint']
+    servermemo = wire_data['serverMemo']
+    payload = {'fingerprint': fingerprint, 'serverMemo': servermemo, 'updates': update}
+    api = 'https://www.sakuraanimes.com/livewire/message/global-search'
+    header = {'Content-Type': 'application/json', 'Accept': 'text/html, application/xhtml+xml',
+              'X-Livewire': 'true', 'X-Csrf-Token': csrf_token, 'Accept-Encoding': 'gzip, deflate',
+              'Priority': 'u=1, i', 'Origin': 'https://www.sakuraanimes.com', 'Referer': 'https://www.sakuraanimes.com/',
+              'Sec-Fetch-Site': 'same-origin'}
+    biscoito = sessao.cookies
+    resposta = sessao.post(api, json=payload, headers=header, cookies=biscoito).content
+    resposta = fromstring(json.loads(resposta)['effects']['html']).find('.//div[@id="search-box"]').findall('ul/li')
+    animes = []
+    for anime in resposta:
+        anime = anime.find('a')
+        link = anime.get('href')
+        nome = ' '.join(anime.text.split()[:-1])
+        animes.append(Anime(nome, link))
+    return animes
     
-def listar_episodios(anime):
+def listar_episodios(anime: Anime):
+    resposta = fromstring(requests.get(anime.link).content)
+    links = resposta.find('.//div[@id="fhd"]')
+    media_fire = links.findall('table/tr/td/a')
+    for link in media_fire:
+        if link.text_content().strip() == 'Mediafire':
+            link = link.get('href')
+            break
+    link = fromstring(requests.get(link).content).find_class('w-full')[0].find('a').get('href')
+    link = ouo_bypass(link)['bypassed_link']
+    eps = mediafire_pasta(link)
+    anime.ep = eps
+    return anime
+    
+def mediafire_pasta(link: str):
     api = 'https://www.mediafire.com/api/1.4/folder/get_content.php'
-    print('[0] Pasta de Download')
-    print('[1] Episodios Unicos')
-    while True:
-        try:
-            esc = int(input('Digite sua escolha: '))
-        except:
-            print('Erro! Tente novamente')
-        else:
-            if esc in (0, 1):
-                break
-            else:
-                print('Erro! Tente novamente')
-    r = requests.get(anime.link)
-    r = fromstring(r.content)
-    r = r.find_class('tab-content')[0]
-    if r.find('.div[@id="fhd"]').find('.table') != None:
-        link = r.find('.div[@id="fhd"]')
-    else:
-        link = r.find('.div[@id="hd"]')
-    if esc == 0:
-        link = link.find('.table').find('.//td').xpath('a')
-        for l in link:
-            texto = l.xpath('text()')[1].strip()
-            if texto == 'Mediafire':
-                link = l.get('href')
-                break
-        try:
-            link = fromstring(requests.get(link).content)
-        except:
-            return None
-        link = link.find_class('w-full')[0]
-        link = link.find('a').get('href')
-        contador = 0
-        while True:
-            try:
-                link = ouo_bypass(link)['bypassed_link']
-            except:
-                contador += 1
-                if contador == 10:
-                    return None
-            else:
-                break
-        id = link.split('/')[4]
-        para = {'content_type': 'files', 'filter': 'all', 'order_by': 'name', 'order_direction': 'asc', 'chunck': 1,
-                'version': 1.5, 'folder_key': id, 'response_format': 'json'}
-        r = requests.get(api, para)
-        resposta = dict(r.json())
-        eps = resposta['response']['folder_content']['files']
-        resposta = []
-        for e in eps:
-            link = e['links']['normal_download']
-            if len(e['filename'].split('_')[-1].split()) == 1:
-                if e['filename'].split('_')[-2] == 'Final':
-                    nome = 'Episodio'+'_'+'_'.join(e['filename'].split('_')[-3:-1])
-                else:
-                    final = e['filename'].split('_')[-1]
-                    if len(final.split('.')) > 2:
-                        nome = 'Episodio'+'_'+'_'.join(final.split('.')[:-1])
-                    else:
-                        nome = 'Episodio'+'_'+final.split('.')[0]
-            else:
-                if e['filename'].split('_')[-2] == 'Final':
-                    nome = 'Final'
-                else:
-                    nome = 'Episodio'+f'_{e["filename"].split("_")[-1].split()[0]}'
-            estensao ='.'+e['filename'].split('.')[-1]
-            server = 'Mediafire'
-            ep = Ep(nome, link, estensao, server)
-            resposta.append(ep)
-    else:
-        links = link.xpath('table')[1].xpath('tr')
-        resposta = []
-        for l in links:
-            nome = 'Episodio_'+l.find('td').text.split()[-1]
-            link = l.xpath('td')[1].xpath('a')
-            for ll in link.copy():
-                if ll.find('span').text.strip() == 'Mediafire':
-                    link = ll.get('href')
-                    break
-            server = 'Mediafire'
-            link = fromstring(requests.get(link).content)
-            link = link.find_class('w-full')[0]
-            link = link.find('a').get('href')
-            contador = 0
-            while True:
-                try:
-                    link = ouo_bypass(link)['bypassed_link']
-                except:
-                    contador += 1
-                    if contador == 10:
-                        return None
-                else:
-                    break
-            estensao ='.'+link.split('/')[-2].split('.')[-1]
-            ep = Ep(nome, link, estensao, server)
-            resposta.append(ep)
-    return resposta
-
-def mediafire(anime):
-    r = fromstring(requests.get(anime.ep.link).content)
-    link = r.get_element_by_id('download_link')
-    link = link.xpath('a')[1].get('href')
-    anime.ep.link = link
-    baixando.baixarar(anime)
+    key = link.split('/')[-2]
+    parame = {'content_type': 'files', 'filter': 'all', 'order_by': 'name', 'order_direction': 'asc',
+              'chunk': 1, 'version': 1.5, 'folder_key': key, 'response_format': 'json'}
+    eps = json.loads(requests.get(api, params=parame).content)['response']['folder_content']['files']
+    eps = [Ep(ep['filename'], ep['links']['normal_download'], f'.{ep['filename'].split('.')[-1]}',
+              'Mediafire') for ep in eps]
+    return eps
     
+def link_ep_mediafire(ep: Ep|list):
+    cloudpass = cloudscraper.create_scraper()
+    if isinstance(ep, list):
+        for e in ep:
+            while True:
+                pagina = fromstring(cloudpass.get(e.link).text)
+                link = pagina.find_class('download_link')[0].find('a[@id="downloadButton"]').get('href')
+                if 'download' in link:
+                    break
+                else:
+                    cloudpass = cloudscraper.create_scraper()
+            e.link = link
+    else:
+        while True:
+            pagina = fromstring(cloudpass.get(ep.link).text)
+            link = pagina.find_class('download_link')[0].find('a[@id="downloadButton"]').get('href')
+            if 'download' in link:
+                break
+            else:
+                cloudpass = cloudscraper.create_scraper()
+        ep.link = link
+    return ep

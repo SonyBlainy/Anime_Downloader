@@ -15,6 +15,7 @@ class CustomHandler(logging.Handler):
         if record.levelno >= logging.ERROR:
             os.startfile('log.log')
             quit()
+
 logging.basicConfig(filename='log.log', filemode='w', level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
@@ -25,19 +26,15 @@ from fera import baixando
 from bakashi import bakashi_anime
 from erai import nyaa
 from erai import torrent
-from drivee.core import Anime, Ep
 from drivee import core
 sair = False
-
-def menu():
-    print('='*30, 'MENU'.center(30), '='*30, '[1] Pesquisar um anime', '[2] Listar episódios baixados',
-          '[3] Qbit', '[0] Sair', sep='\n')
 
 while not sair:
     t = 'Download encerrado pelo usuario'
     texto = 'Digite o anime que deseja baixar ou digite sair: '
     nenhum = 'Nenhum anime encontrado'
-    menu()
+    print('='*30, 'MENU'.center(30), '='*30, '[1] Pesquisar um anime', '[2] Listar episódios baixados',
+          '[3] Qbit', '[0] Sair', sep='\n')
     esco = ob('Escolha um opção: ', (0,3))
     if esco == 0:
         sair = True
@@ -48,42 +45,19 @@ while not sair:
             continue
         if esco == 1:
             nome = str(input('Digite o nome do anime: '))
-            resul = Sakura.pesquisar_anime(nome)
-            if resul == []:
+            animes = Sakura.pesquisar_anime(nome)
+            if not animes:
                 logging.warning(nenhum)
                 print(nenhum)
+                continue
+            anime = core.escolher_anime_sakura(animes)
+            if not anime:
+                continue
+            baixando.download_padrao(anime)
+            if isinstance(anime.ep, list):
+                logging.info('episodios: '+', '.join([ep.nome for ep in anime.ep])+'baixados')
             else:
-                print('='*30)
-                for i, a in enumerate(resul):
-                    print(f'[{i}] {a.nome}')
-                esco = ob(texto, (0, len(resul)), True)
-                if isinstance(esco, int):
-                    anime = resul[esco]
-                    anime.ep = Sakura.listar_episodios(anime)
-                    if anime.ep == None:
-                        erro = 'Erro ao tentar obter o link para download ou pasta de download'
-                        logging.error(erro)
-                        print(erro)
-                    else:
-                        anime.listar()
-                        if isinstance(anime.ep, list):
-                            copia = anime
-                            for ep in anime.ep:
-                                copia.ep = ep
-                                copia.trat()
-                                try:
-                                    Sakura.mediafire(copia)
-                                    logging.info(f'Episodio {copia.ep.nome} baixado')
-                                except KeyboardInterrupt:
-                                    logging.info(t)
-                                    print(t)
-                        else:
-                            try:
-                                Sakura.mediafire(anime)
-                                logging.info(f'Episodio {anime.ep.nome} baixado')
-                            except KeyboardInterrupt:
-                                logging.info(t)
-                                print(t)
+                logging.info(f'{anime.ep.nome} baixado')
         elif esco == 2:
             nome = str(input('Digite o nome do anime: '))
             animes = bakashi_anime.pesquisar(nome)
@@ -121,7 +95,7 @@ while not sair:
             nome = str(input('Digite o nome do anime: '))
             animes = nyaa.pesquisar(nome)
             anime = core.escolher_animes_erai(animes)
-            if not anime:
+            if not anime.ep:
                 continue
             else:
                 nyaa.baixar_anime(anime)
@@ -151,36 +125,19 @@ while not sair:
                         print(t)
             elif r.site == 'Sakura':
                 anime = r
-                anime.ep = Sakura.listar_episodios(anime)
-                if anime.ep == None:
-                    erro = 'Erro ao tentar obter o link para download'
-                    logging.error(erro)
-                    print(erro)
+                anime = core.escolher_anime_sakura(anime, True)
+                if not anime:
+                    continue
+                baixando.download_padrao(anime)
+                if isinstance(anime.ep, list):
+                    logging.info('episodios: '+', '.join([ep.nome for ep in anime.ep])+'baixados')
                 else:
-                    anime.listar()
-                    if isinstance(anime.ep, list):
-                        copia = anime
-                        for ep in anime.ep:
-                            copia.ep = ep
-                            copia.trat()
-                            try:
-                                Sakura.mediafire(copia)
-                                logging.info(f'Episodio {copia.ep.nome} baixado')
-                            except KeyboardInterrupt:
-                                logging.info(t)
-                                print(t)
-                    else:
-                        try:
-                            Sakura.mediafire(anime)
-                            logging.info(f'Episodio {anime.ep.nome} baixado')
-                        except KeyboardInterrupt:
-                            logging.info(t)
-                            print(t)
+                    logging.info(f'{anime.ep.nome} baixado')
             elif r.site.split('_')[0] == 'Erai':
                 nome = r.site.split('_')[1].strip()
                 anime = nyaa.pesquisar(nome)
                 anime = core.escolher_animes_erai(anime)
-                if not anime:
+                if not anime.ep:
                     continue
                 else:
                     nyaa.baixar_anime(anime)
@@ -207,8 +164,6 @@ while not sair:
                     else:
                         try:
                             esco = int(esco)
-                        except KeyboardInterrupt:
-                            break
                         except:
                             print('Erro! Tente novamente')
                         else:

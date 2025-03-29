@@ -1,19 +1,31 @@
 import requests
-import shutil
-from tqdm.auto import tqdm
+from concurrent.futures import ThreadPoolExecutor
+import threading
+from tqdm import tqdm
 
+lock = threading.Lock()
+
+def baixar_episodio(ep, posi):
+    cabeca = {'Accept-Encoding': '*', 
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'}
+    with requests.get(ep.link, stream=True, headers=cabeca) as arquivo:
+        total = int(arquivo.headers['Content-Length'])
+        with lock:
+            progresso = tqdm(total=total, desc=ep.nome, position=posi, leave=True, unit='B', unit_scale=True)
+        with arquivo.raw as raw:
+            raw.decode_content = True
+            with open(ep.caminho, 'wb') as f:
+                for chunk in iter(lambda: raw.read(4096), b""):
+                    f.write(chunk)
+                    progresso.update(len(chunk))
+        progresso.close()
+    
 def download_padrao(anime):
-    cabeca = {'Accept-Encoding': '*', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'}
+    threads = []
     if isinstance(anime.ep, list):
-        for ep in anime.ep:
-            with requests.get(ep.link, stream=True, headers=cabeca) as arquivo:
-                total = int(arquivo.headers['Content-Length'])
-                with tqdm.wrapattr(arquivo.raw, 'read', total) as raw:
-                    with open(ep.caminho, 'wb') as f:
-                        shutil.copyfileobj(raw, f)
+        with ThreadPoolExecutor() as executor:
+            executor.map(lambda ep: baixar_episodio(ep, anime.ep.index(ep)), anime.ep)
     else:
-        with requests.get(anime.ep.link, stream=True, headers=cabeca) as arquivo:
-            total = int(arquivo.headers['Content-Length'])
-            with tqdm.wrapattr(arquivo.raw, 'read', total) as raw:
-                with open(anime.ep.caminho, 'wb') as f:
-                    shutil.copyfileobj(raw, f)
+        baixar_episodio(anime.ep, 0)
+    for t in threads:
+        t.join()

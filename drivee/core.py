@@ -1,5 +1,6 @@
 from fera.animes_geral import obter_escolha_valida as ob
 from sakura import Sakura
+from bakashi.bakashi_anime import episodios, player
 import logging
 from fera.animes_geral import verifica
 import os
@@ -39,6 +40,10 @@ class Anime:
             if self.ep.server == 'Mediafire':
                 logging.info(f'Episodio {self.nome} escolhido para download')
                 self.ep.caminho = os.path.join(path, '_'.join(self.nome.split()), self.ep.nome)
+            elif self.ep.server == 'Bakashi':
+                logging.info(f'Episodio numero {' '.join(self.ep.nome.split()[1:])} escolhido para download')
+                self.ep.nome = '_'.join(self.nome.split())+'_'+'_'.join(self.ep.nome.split())
+                self.ep.caminho = os.path.join(path, '_'.join(self.nome.split()), self.ep.nome)
             else:
                 logging.info(f'Episodio numero {self.ep.nome.split()[1]} escolhido para download')
                 self.ep.caminho = os.path.join(path, '_'.join(self.nome.split()))
@@ -48,6 +53,11 @@ class Anime:
             self.ep = [self.ep[int(e)] for e in esco.split('-')]
             if self.ep[0].server == 'Mediafire':
                 for ep in self.ep:
+                    ep.caminho = os.path.join(path, '_'.join(self.nome.split()), ep.nome)
+                logging.info(f'{len(self.ep)} episodios escolhidos para download')
+            elif self.ep[0].server == 'Bakashi':
+                for ep in self.ep:
+                    ep.nome = '_'.join(self.nome.split())+'_'+'_'.join(ep.nome.split())
                     ep.caminho = os.path.join(path, '_'.join(self.nome.split()), ep.nome)
                 logging.info(f'{len(self.ep)} episodios escolhidos para download')
             else:
@@ -111,4 +121,41 @@ def escolher_anime_sakura(animes: list|Anime, baixar=False):
     if not anime.ep:
         return None
     anime.ep = Sakura.link_ep_mediafire(anime.ep)
+    return anime
+
+def escolher_anime_bakashi(animes: list|Anime, baixar=False):
+    if not baixar:
+        if not animes:
+            logging.info('Nenhum anime encontrado no Bakashi')
+            print('Nenhum anime encontrado')
+            return None
+        for i, anime in enumerate(animes):
+            print(f'[{i}] {anime.nome}')
+        esco = ob('Escolha um anime ou digite sair: ', (0, len(animes)), True)
+        if not esco:
+            logging.info('Nenhum anime escolhido no Bakashi')
+            return None
+        anime = animes[esco]
+    else:
+        anime = animes
+    anime = episodios(anime)
+    if not anime:
+        return None
+    anime.ep = [Ep(ep['nome'], ep['link'], server='Bakashi') for ep in anime.ep]
+    anime.listar()
+    if not anime.ep:
+        return None
+    if isinstance(anime.ep, list):
+        anime.ep = [player(ep) for ep in anime.ep]
+        for ep in anime.ep:
+            if isinstance(ep, tuple):
+                logging.warning(f'Player não existe no episodio {ep[1].nome}')
+                return None
+            ep.caminho += ep.estensao
+    else:
+        anime.ep = player(anime.ep)
+        if isinstance(anime.ep, tuple):
+            logging.warning(f'Player não existe no episodio {anime.ep[1].nome}')
+            return None
+        anime.ep.caminho += anime.ep.estensao
     return anime

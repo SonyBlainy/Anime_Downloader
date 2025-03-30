@@ -39,7 +39,7 @@ def listar_episodios(anime_nome, anime_path):
                         link = dados.link
                         if link == 'Erai':
                             dados.site = 'Erai_'+dados.nome_pesquisa
-                        elif 'bakashi' in link:
+                        elif 'q1n.net' in link:
                             dados.site = 'Bakashi'
                         elif 'sakuraanimes' in link:
                             dados.site = 'Sakura'

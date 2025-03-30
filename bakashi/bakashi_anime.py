@@ -1,13 +1,13 @@
-from sakura.Sakura import Anime, Ep
 import requests
 from lxml.html import fromstring
+import re
 from urllib.parse import unquote
 
 def pesquisar(nome: str) -> list:
-    api = 'https://bakashi.tv/?s='
+    api = 'https://q1n.net/'
     if len(nome.split()) > 1:
         nome = '+'.join(nome.split())
-    r = fromstring(requests.get(api+nome).content)
+    r = fromstring(requests.get(api, params={'s': nome}).content)
     animes = r.find_class('result-item')
     lista = []
     for a in animes:
@@ -16,45 +16,43 @@ def pesquisar(nome: str) -> list:
         dados = dados.find('div[1]/a')
         link = dados.get('href')
         nome = dados.text
-        anime = Anime(nome, link)
-        lista.append(anime)
+        dados = {'nome': nome, 'link': link}
+        lista.append(dados)
     return lista
 
-def episodios(anime: Anime) -> Anime:
-    r = fromstring(requests.get(anime.link).content)
-    eps = r.find_class('episodios')[0].xpath('li')
+def episodios(anime):
     lista = []
+    r = fromstring(requests.get(anime.link).content)
+    eps = r.find_class('episodios')[0].findall('li')
     for ep in eps:
-        nome = ep.find_class('episodiotitle')[0].find('a')
-        link = nome.get('href')
-        nome = nome.text
-        r = fromstring(requests.get(link).content)
-        links = r.get_element_by_id('dooplay_player_content').find_class('source-box')[1:]
-        for l in links:
-            l = l.find('div/iframe').get('src')
-            if 'csst.online' in l:
-                res = fromstring(requests.get(l).content)
-                var = res.xpath('body/script')[0].text
-                var = var.split('var')[2].split('(')[1].split(')')[0]
-                var = var.split('[1080p]')[1].split('"')[0][:-1]
-                ep = Ep(nome, var, '.'+var.split('.')[-1], 'Bakashi')
-                lista.append(ep)
-                break
-            else:
-                l = unquote(l)
-                if 'streamtape' in l:
-                    l = l.split('?')[1].split('=')[1].split('/')
-                    l[3] = 'v'
-                    l = '/'.join(l)
-                    r = fromstring(requests.get(l).content)
-                    l = r.get_element_by_id('norobotlink').xpath('./following-sibling::script')[0].text.split('=')
-                    l = l[5].split("'")[0]
-                    li = 'https://'+r.get_element_by_id('ideoooolink').text[1:]
-                    li = li.split('&')
-                    li[-1] = f'token={l}'
-                    li = '&'.join(li)+'&dl=1'
-                    ep = Ep(nome, li, '.mp4', 'Bakashi')
-                    lista.append(ep)
-                    break
+        link = ep.find_class('episodiotitle')[0].find('a')
+        nome = link.text
+        link = link.get('href')
+        lista.append({'nome': nome, 'link': link})
+    if not lista:
+        return None
     anime.ep = lista
     return anime
+
+def player(ep):
+    r = fromstring(requests.get(ep.link).content)
+    video = ''
+    pagina = r.find('.//div[@id="dooplay_player_content"]').findall('.div')[1:]
+    for i in pagina:
+        if 'csst.online' in i.find('div/iframe').get('data-litespeed-src'):
+            video = i.find('div/iframe').get('data-litespeed-src')
+            break
+    if 'aviso' in video:
+        video = unquote(video).split('=')[-1]
+    if not video:
+        return None, ep
+    r = fromstring(requests.get(video).content)
+    link = r.find('.body/script').xpath('text()')[0]
+    pattern = r'var player = new Playerjs\({[^}]*file:"([^"]+)"'
+    t = re.findall(pattern, link)[-1]
+    link = re.search(r'\[1080p\](.*$)', t).group(1)
+    estensao = re.search(r'/[\d]*(\.[\w]*)/', link).group(1)
+    ep.estensao = estensao
+    ep.nome += estensao
+    ep.link = link
+    return ep

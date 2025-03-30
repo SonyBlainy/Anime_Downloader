@@ -61,68 +61,31 @@ while not sair:
         elif esco == 2:
             nome = str(input('Digite o nome do anime: '))
             animes = bakashi_anime.pesquisar(nome)
-            if len(animes) == 0:
+            if not animes:
                 logging.warning(nenhum)
                 print(nenhum)
-            else:
-                print('='*30)
-                for i, a in enumerate(animes):
-                    print(f'[{i}] {a.nome}')
-                esco = ob(texto, (0, len(animes)), True)
-                if isinstance(esco, int):
-                    anime = animes[esco]
-                    anime = bakashi_anime.episodios(anime)
-                    anime.listar()
-                    if isinstance(anime.ep, list):
-                        copia = anime
-                        for ep in anime.ep:
-                            copia.ep = ep
-                            copia.trat()
-                            try:
-                                baixando.baixarar(copia)
-                                logging.info(f'Episodio {copia.ep.nome} baixado')
-                            except KeyboardInterrupt:
-                                logging.info(t)
-                                print(t)
-                    else:
-                        try:
-                            baixando.baixarar(anime)
-                            logging.info(f'Episodio {anime.ep.nome} baixado')
-                        except KeyboardInterrupt:
-                            logging.info(t)
-                            print(t)
+                continue
+            animes = [core.Anime(anime['nome'], anime['link']) for anime in animes]
+            anime = core.escolher_anime_bakashi(animes)
+            if not anime:
+                continue
+            baixando.download_padrao(anime)
         elif esco == 3:
             nome = str(input('Digite o nome do anime: '))
             animes = nyaa.pesquisar(nome)
             anime = core.escolher_animes_erai(animes)
             if not anime.ep:
                 continue
-            else:
-                nyaa.baixar_anime(anime)
+            nyaa.baixar_anime(anime)
     elif esco == 2:
         r = animes_geral.listar()
         if r != None:
             if r.site == 'Bakashi':
-                anime = bakashi_anime.episodios(r)
-                anime.listar()
-                if isinstance(anime.ep, list):
-                    copia = anime
-                    for ep in anime.ep:
-                        copia.ep = ep
-                        copia.trat()
-                        try:
-                            baixando.baixarar(copia)
-                            logging.info(f'Episodio {copia.ep.nome} baixado')
-                        except KeyboardInterrupt:
-                            logging.info(t)
-                            print(t)
-                else:
-                    try:
-                        baixando.baixarar(anime)
-                        logging.info(f'Episodio {anime.ep.nome} baixado')
-                    except KeyboardInterrupt:
-                        logging.info(t)
-                        print(t)
+                anime = r
+                anime = core.escolher_anime_bakashi(anime, True)
+                if not anime:
+                    continue
+                baixando.download_padrao(anime)
             elif r.site == 'Sakura':
                 anime = r
                 anime = core.escolher_anime_sakura(anime, True)
@@ -139,8 +102,7 @@ while not sair:
                 anime = core.escolher_animes_erai(anime)
                 if not anime.ep:
                     continue
-                else:
-                    nyaa.baixar_anime(anime)
+                nyaa.baixar_anime(anime)
     elif esco == 3:
         qbit = torrent.Qbit()
         if not qbit.sessao:

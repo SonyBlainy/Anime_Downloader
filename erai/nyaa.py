@@ -42,34 +42,16 @@ def pesquisar(nome:str):
     return resultado
 
 def extrair_nome(nome):
-    nome = nome.split('-')
-    nome = [p.strip() for p in nome]
-    for posi, i in enumerate(nome):
-        if i[0].isnumeric() and '[' in i:
-            anime_nome = nome[1:posi]
-            break
-    if len(anime_nome) > 1:
-        copia = anime_nome.copy()
-        for p in copia:
-            if copia.index(p) == 0:
-                anime_nome = ' '.join(p.split()[1:])
-            else:
-                anime_nome += f' {p}'
-    else:
-        anime_nome = ' '.join(anime_nome[0].split()[1:])
-    ep = '-'.join(nome[posi:])
-    if '~' not in ep:
-        colchetes = re.findall(r'\[(.*?)\]', ep)
-        if len(colchetes[0].split()) > 1:
-            copia = colchetes[1:]
-            colchetes = colchetes[0].split()
-            for i in copia:
-                colchetes.append(i)
-        ep = ep.split()[0]
-        logging.info(f'Informacoes do episodio {ep} do anime {anime_nome} extraidas')
-        return [anime_nome, ep, colchetes]
-    else:
-        return None
+    anime_nome = re.findall(r'\[Erai-raws\] (.*) - [\w\.v]* [~\[]', nome)[0]
+    colchetes = re.findall(r' [\.\wv]* (\[.*$)', nome)[0]
+    colchetes = re.findall(r'\[(.*?)\]', colchetes)
+    if len(colchetes[0].split()) > 1:
+        copia = colchetes[1:]
+        colchetes = colchetes[0].split()
+        colchetes += copia
+    ep = re.findall(r'- ([\w ~\.v]*) \[', nome)[0]
+    logging.info(f'Informacoes do episodio {ep} do anime {anime_nome} extraidas')
+    return [anime_nome, ep, colchetes]
 
 def filtrar(info, lista, link):
     if lista.get(info[0]) == None:

@@ -73,8 +73,10 @@ while not sair:
         elif esco == 3:
             nome = str(input('Digite o nome do anime: '))
             animes = nyaa.pesquisar(nome)
+            if not animes:
+                continue
             anime = core.escolher_animes_erai(animes)
-            if not anime.ep:
+            if not anime:
                 continue
             nyaa.baixar_anime(anime)
     elif esco == 2:
@@ -99,8 +101,10 @@ while not sair:
             elif r.site.split('_')[0] == 'Erai':
                 nome = r.site.split('_')[1].strip()
                 anime = nyaa.pesquisar(nome)
+                if not anime:
+                    continue
                 anime = core.escolher_animes_erai(anime)
-                if not anime.ep:
+                if not anime:
                     continue
                 nyaa.baixar_anime(anime)
     elif esco == 3:

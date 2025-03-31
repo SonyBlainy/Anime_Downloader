@@ -1,5 +1,6 @@
 import pickle
 import logging
+import re
 import os
 path = os.getenv('caminho')
 save = os.getenv('save')
@@ -37,12 +38,15 @@ def listar_episodios(anime_nome, anime_path):
                         with open(save_file, 'rb') as arquivo:
                             dados = pickle.load(arquivo)
                         link = dados.link
-                        if link == 'Erai':
-                            dados.site = 'Erai_'+dados.nome_pesquisa
-                        elif 'q1n.net' in link:
-                            dados.site = 'Bakashi'
-                        elif 'sakuraanimes' in link:
-                            dados.site = 'Sakura'
+                        link = re.findall(r'//(.*)\.', link)
+                        if not link:
+                            link = dados.link
+                        fontes = {'Erai': lambda x: 'Erai_'+x.nome_pesquisa, 'q1n': 'Bakashi', 'sakuraanimes': 'Sakura'}
+                        if link in fontes.keys():
+                            try:
+                                dados.site = fontes[link](dados)    
+                            except:
+                                dados.site = fontes[link]
                         return dados
                     except FileNotFoundError:
                         logging.warning(f'Save não encontrado para o anime {anime_nome}')
@@ -58,13 +62,18 @@ def listar_episodios(anime_nome, anime_path):
                         print('Opção inválida, tente novamente')
                     else:
                         if 0 <= esco < len(episodios):
-                            logging.info(f'Abrindo episodio {episodios[esco].name} do anime {anime_nome}')
-                            os.startfile(episodios[esco].path)
+                            if episodios[esco].is_dir():
+                                logging.info(f'Movendo os episodios {episodios[esco].name} para o diretorio {anime_path}')
+                                mutiplos_eps(anime_path, episodios[esco].path)
+                                break
+                            else:
+                                logging.info(f'Abrindo episodio {episodios[esco].name} do anime {anime_nome}')
+                                os.startfile(episodios[esco].path)
                         else:
                             logging.warning(f'Episodio com indice {esco} não existe')
                             print('Episódio não existe, tente novamente')
     except OSError as e:
-        logging.error(f'Erro ao acessar os episodios do anime {anime_nome}')
+        logging.error(f'Erro ao acessar os episodios do anime {anime_nome}: {e}')
 
 def listar():
     animes = listar_animes()
@@ -111,3 +120,9 @@ def obter_escolha_valida(prompt, intervalo=None, sair_opcional=False):
             return escolha
         except:
             print('Erro! Tente novamente')
+
+def mutiplos_eps(anime_path: str, eps_path: str):
+    with os.scandir(eps_path) as eps:
+        for ep in eps:
+            os.replace(ep.path, os.path.join(anime_path, ep.name))
+        os.removedirs(eps_path)

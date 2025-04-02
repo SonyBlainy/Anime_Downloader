@@ -110,7 +110,7 @@ def escolher_anime_sakura(animes: list|Anime, baixar=False):
         for i, anime in enumerate(animes):
             print(f'[{i}] {anime.nome}')
         esco = ob('Escolha um anime ou digite sair: ', (0, len(animes)), True)
-        if not esco:
+        if not isinstance(esco, int):
             logging.info('Nenhum anime escolhido na Sakura')
             return None
         anime = animes[esco]
@@ -132,7 +132,7 @@ def escolher_anime_bakashi(animes: list|Anime, baixar=False):
         for i, anime in enumerate(animes):
             print(f'[{i}] {anime.nome}')
         esco = ob('Escolha um anime ou digite sair: ', (0, len(animes)), True)
-        if not esco:
+        if not isinstance(esco, int):
             logging.info('Nenhum anime escolhido no Bakashi')
             return None
         anime = animes[esco]

@@ -35,7 +35,7 @@ while not sair:
     nenhum = 'Nenhum anime encontrado'
     print('='*30, 'MENU'.center(30), '='*30, '[1] Pesquisar um anime', '[2] Listar episódios baixados',
           '[3] Qbit', '[0] Sair', sep='\n')
-    esco = ob('Escolha um opção: ', (0,3))
+    esco = ob('Escolha uma opção: ', (0,3))
     if esco == 0:
         sair = True
     elif esco == 1:

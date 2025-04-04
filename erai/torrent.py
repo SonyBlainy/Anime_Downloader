@@ -1,5 +1,5 @@
 import os
-import logging
+import psutil
 import requests
 
 class Qbit():
@@ -8,7 +8,8 @@ class Qbit():
         self.sessao = self.init_sessao()
 
     def init_sessao(self):
-        if 'qbittorrent.exe' not in os.popen('tasklist').read().lower():
+        lista = [processo.info['name'] for processo in psutil.process_iter(['name'])]
+        if not 'qbittorrent.exe' in lista:
             os.system('powershell -Command \"qbittorrent.exe\"')
         sessao = requests.Session()
         para = {'username': 'admin', 'password': 'admin123'}

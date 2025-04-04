@@ -22,7 +22,7 @@ O **Anime Downloader** é uma solução prática e eficiente que automatiza o pr
 ## Como Usar
 ![GIF](gifs/gif_2.gif)
 ### Instalação
-- Baixe e instale o [Qbittorent](https://qbittorrent.org/download/)
+- Baixe e instale o [Qbittorent](https://qbittorrent.org)
 
 - Baixe e instale o [Python](https://www.python.org/downloads/) junto com o pip
 

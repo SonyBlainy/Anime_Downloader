@@ -26,6 +26,10 @@ O **Anime Downloader** é uma solução prática e eficiente que automatiza o pr
 
 - Baixe e instale o [Python](https://www.python.org/downloads/) junto com o pip
 
+- Baixe e instale o [Git](https://git-scm.com/downloads)
+
+- Recomendo instalar o [VLC](https://www.videolan.org/vlc/index.html) como media player
+
 - Clone o repositório:
    ```bash
    git clone https://github.com/SonyBlainy/Anime_Downloader.git

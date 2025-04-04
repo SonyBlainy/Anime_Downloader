@@ -2,9 +2,8 @@ import os
 def configurar_diretorios():
     caminhos = {'animes': os.path.join(r'C:\Users', os.getlogin(), 'Desktop', 'Animes'),
                 'save': os.path.expandvars(r'%LOCALAPPDATA%\Anime_downloader')}
-    for pasta in caminhos.values():
-        if not os.path.isdir(pasta):
-            os.mkdir(pasta)
+    for pasta in (i for i in caminhos.values()):
+        os.makedirs(pasta, exist_ok=True)
     os.environ.update({'caminho': caminhos['animes'], 'save': caminhos['save']})
 configurar_diretorios()
 import logging
@@ -15,7 +14,6 @@ class CustomHandler(logging.Handler):
         if record.levelno >= logging.ERROR:
             os.startfile('log.log')
             quit()
-
 logging.basicConfig(filename='log.log', filemode='w', level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
@@ -39,11 +37,11 @@ while not sair:
     if esco == 0:
         sair = True
     elif esco == 1:
-        print('='*30, '[1] Sakura', '[2] Bakashi', '[3] Erai', sep='\n')
+        print('='*30, '[1] Erai', '[2] Sakura', '[3] Bakashi', sep='\n')
         esco = ob('Escolha em qual site deseja pesquisar: ', (1, 3), True)
         if not esco:
             continue
-        if esco == 1:
+        if esco == 2:
             nome = str(input('Digite o nome do anime: '))
             animes = Sakura.pesquisar_anime(nome)
             if not animes:
@@ -58,7 +56,7 @@ while not sair:
                 logging.info('episodios: '+', '.join([ep.nome for ep in anime.ep])+'baixados')
             else:
                 logging.info(f'{anime.ep.nome} baixado')
-        elif esco == 2:
+        elif esco == 3:
             nome = str(input('Digite o nome do anime: '))
             animes = bakashi_anime.pesquisar(nome)
             if not animes:
@@ -70,7 +68,7 @@ while not sair:
             if not anime:
                 continue
             baixando.download_padrao(anime)
-        elif esco == 3:
+        elif esco == 1:
             nome = str(input('Digite o nome do anime: '))
             animes = nyaa.pesquisar(nome)
             if not animes:
@@ -108,7 +106,11 @@ while not sair:
                     continue
                 nyaa.baixar_anime(anime)
     elif esco == 3:
-        qbit = torrent.Qbit()
+        try:
+            qbit = torrent.Qbit()
+        except Exception as erro:
+            logging.error(f'Erro ao iniciar o Qbit: {erro}')
+            print('Erro ao iniciar o Qbit')
         if not qbit.sessao:
             erro = 'Erro ao fazer login'
             logging.error(erro)
@@ -131,13 +133,16 @@ while not sair:
                         try:
                             esco = int(esco)
                         except:
-                            print('Erro! Tente novamente')
+                            if esco.upper() == 'SAIR':
+                                break
+                            else:
+                                print('Erro! Tente novamente')
                         else:
                             break
                 if esco == '00':
                     qbit.parar(tudo=True)
                     logging.info('Todos os torrents encerrados')
-                else:
+                if isinstance(esco, int):
                     print('='*30)
                     r = r[esco]
                     print(f'Nome: {r['name']}', f'Velocidade: {r['dlspeed']/(1024**2):.2f}MB/s',

@@ -22,6 +22,18 @@ O **Anime Downloader** é uma solução prática e eficiente que automatiza o pr
 ## Como Usar
 ![GIF](gifs/gif_2.gif)
 ### Instalação
+#### Instalação rápida
+![GIF](gifs/gif_5.gif)
+- Baixe e instale o [Qbittorent](https://qbittorrent.org)
+
+- Recomendo instalar o [VLC](https://www.videolan.org/vlc/index.html) como media player
+
+- Baixe a útima versão do [Anime Downloader](https://github.com/SonyBlainy/Anime_Downloader/releases/latest) e descompacte no seu local de preferência
+
+- Abra a pasta, clique com botão direito em Anime Downloader, Enviar para > Área de trabalho
+
+#### Instalação Manual
+
 - Baixe e instale o [Qbittorent](https://qbittorrent.org)
 
 - Baixe e instale o [Python](https://www.python.org/downloads/) junto com o pip
@@ -50,13 +62,13 @@ O **Anime Downloader** é uma solução prática e eficiente que automatiza o pr
 - Verifique se a Interface de Usuario da web(Controle Remoto) esta ativada
 - Verique se o endereço IP esta como `127.0.0.1` e a porta como `8080`
 - Altere o usuário e a senha para `admin` e `admin123` respectivamente
-- Execute o arquivo `path_qbittorrent.py` como administrador.
 
 ### Execução
-- Rode o script principal:
+- Caso tenha feito a instalação manual, rode o script principal:
    ```bash
    python main.py
    ```
+- Se não, execute o atalho na Área de trabalho
 ---
 
 ## Exemplo de Uso

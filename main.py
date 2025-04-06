@@ -1,6 +1,4 @@
 import os
-from path_qbittorrent import caminho_qbit
-caminho_qbit()
 def configurar_diretorios():
     caminhos = {'animes': os.path.join(r'C:\Users', os.getlogin(), 'Desktop', 'Animes'),
                 'save': os.path.expandvars(r'%LOCALAPPDATA%\Anime_downloader')}

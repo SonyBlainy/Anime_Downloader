@@ -42,14 +42,15 @@ def pesquisar(nome:str):
     return resultado
 
 def extrair_nome(nome):
-    anime_nome = re.findall(r'\[Erai-raws\] (.*) - [\w\.v]* [~\[]', nome)[0]
-    colchetes = re.findall(r' [\.\wv]* (\[.*$)', nome)[0]
+    anime_nome = [a for a in re.findall(r'\[Erai-raws\] (.*) - [\w\.v]* [~\[]|\[Erai-raws\] (.*) - [\w\.v]* \(JA\)', 
+                                        nome)[0] if len(a) != 0][0]
+    colchetes = [a for a in re.findall(r' [\.\wv]* (\[.*$)| \(JA\) (\[.*$)', nome)[0] if len(a) != 0][0]
     colchetes = re.findall(r'\[(.*?)\]', colchetes)
     if len(colchetes[0].split()) > 1:
         copia = colchetes[1:]
         colchetes = colchetes[0].split()
         colchetes += copia
-    ep = re.findall(r'- ([\w ~\.v]*) \[', nome)[0]
+    ep = [a for a in re.findall(r'- ([\w ~\.v]*) \[| - ([\w ~\.v]*) \(JA\)', nome)[0] if len(a) != 0][0]
     logging.info(f'Informacoes do episodio {ep} do anime {anime_nome} extraidas')
     return [anime_nome, ep, colchetes]
 
@@ -92,12 +93,18 @@ def busca(pagina, lista=None):
     return lista
 
 def baixar_anime(anime):
-    qbit = torrent.Qbit()
-    if isinstance(anime.ep, list):
-        logging.info(f'Baixando {len(anime.ep)} episodios')
-        for ep in anime.ep:
-            qbit.baixar(ep)
-            logging.info(f'Episodio {ep.nome.split()[1]} baixado')
+    if not anime.ep:
+        return None
     else:
-        qbit.baixar(anime.ep)
-        logging.info(f'Episodio {anime.ep.nome.split()[1]} baixado')
+        qbit = torrent.Qbit()
+        if not qbit.sessao:
+            logging.error('Erro ao iniciar o Qbit')
+            return None
+        if isinstance(anime.ep, list):
+            logging.info(f'Baixando {len(anime.ep)} episodios')
+            for ep in anime.ep:
+                qbit.baixar(ep)
+                logging.info(f'Episodio {ep.nome.split()[1]} baixado')
+        else:
+            qbit.baixar(anime.ep)
+            logging.info(f'Episodio {anime.ep.nome.split()[1]} baixado')

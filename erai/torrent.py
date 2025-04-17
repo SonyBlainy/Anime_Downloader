@@ -9,7 +9,8 @@ class Qbit():
         self.sessao = self.init_sessao()
 
     def init_sessao(self):
-        if os.path.abspath(r'C:\Program Files\qBittorrent') not in os.environ['PATH'].split(os.pathsep):
+        if os.path.abspath(r'C:\Program Files\qBittorrent') not in os.environ['Path'].split(os.pathsep):
+            os.environ['Path'] += os.pathsep+os.path.abspath(r'C:\Program Files\qBittorrent')
             caminho_qbit()
         lista = [processo.info['name'] for processo in psutil.process_iter(['name'])]
         if not 'qbittorrent.exe' in lista:

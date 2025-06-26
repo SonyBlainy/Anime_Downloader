@@ -1,96 +1,67 @@
 import requests
-from erai import torrent
 import re
+from fera.animes_geral import obter_escolha_valida as ob
+from erai import torrent
 from lxml.html import fromstring
 import os
 import logging
+
 save = os.getenv('save')
 path = os.getenv('caminho')
+cookie = {'wordpress_logged_in_25c65adc7d24c2f6075a3cbdddcf4db0': 'sonyblainy%7C1782488870%7CtagV6OIs9GVUlh1bzkgWrcAwYfpElhFfxmC04xAO1PB%7C13cd2e304dcb43faa3f501f5ca7fb5300213fb4a2705b5be4c0dfcfc9112e399'}
 
 def pesquisar(nome:str):
     if len(nome.split()) > 1:
         nome = '+'.join(nome.split())
-    api = 'https://nyaa.land/user/Erai-raws'
-    post = {'f':0, 'c':'0_0', 'q':nome}
+    api = 'https://www.erai-raws.info/?s='+nome
     try:
-        reque = requests.get(api, params=post)
+        reque = requests.get(api, cookies=cookie)
         if reque.status_code != 200:
-            logging.error(f'Erro {reque.status_code} ao acessar a pagina do Nyaa')
+            logging.error(f'Erro {reque.status_code} ao acessar a pagina do Erai')
         else:
             r = fromstring(reque.content)
     except requests.RequestException as e:
         logging.error(f'Erro ao requisitar a pagina HTML: {e}')
-    page = r.find_class('center')[0].find_class('pagination')
-    if len(page) > 0:
-        contador = 1
-        resultado = busca(r)
-        logging.info(f'Pagina número 1 analisada, {len(resultado)} animes encontrados atualmente')
-        while True:
-            page = r.find_class('center')[0].find_class('pagination')[0]
-            try:
-                link = 'https://nyaa.land'+page.find_class('next')[0].find('a').get('href')
-            except:
-                break
-            else:
-                r = fromstring(requests.get(link).content)
-                resultado = busca(r, resultado)
-                contador += 1
-                logging.info(f'Pagina número {contador} analisada, {len(resultado)} animes encontrados atualmente')
-    else:
-        resultado = busca(r)
-        logging.info(f'Pagina analisada, {len(resultado)} animes encontrados')
+    animes = r.get_element_by_id('main').findall('article')
+    resultado = []
+    for anime in animes:
+        link = anime.find('div/header/h2/a')
+        nome = link.xpath('text()')[0]
+        link = link.get('href')
+        resultado.append({'nome': nome, 'link': link})
+    print('='*30)
+    for i, a in enumerate(resultado):
+        print(f'[{i}] {a["nome"]}')
+    esco = ob('Escolha um anime ou digite sair: ', (0, len(resultado)), True)
+    if not isinstance(esco, int):
+        return None
+    resultado = resultado[esco]
+    resultado = extrair_ep(resultado)
     return resultado
 
-def extrair_nome(nome):
-    anime_nome = [a for a in re.findall(r'\[Erai-raws\] (.*) - [\w\.v]* [~\[]|\[Erai-raws\] (.*) - [\w\.v]* \(JA\)', 
-                                        nome)[0] if len(a) != 0][0]
-    colchetes = [a for a in re.findall(r' [\.\wv]* (\[.*$)| \(JA\) (\[.*$)', nome)[0] if len(a) != 0][0]
-    colchetes = re.findall(r'\[(.*?)\]', colchetes)
-    if len(colchetes[0].split()) > 1:
-        copia = colchetes[1:]
-        colchetes = colchetes[0].split()
-        colchetes += copia
-    ep = [a for a in re.findall(r'- ([\w ~\.v]*) \[| - ([\w ~\.v]*) \(JA\)', nome)[0] if len(a) != 0][0]
-    logging.info(f'Informacoes do episodio {ep} do anime {anime_nome} extraidas')
-    return [anime_nome, ep, colchetes]
-
-def filtrar(info, lista, link):
-    if lista.get(info[0]) == None:
-        if 'HEVC' in info[2] or '1080p' in info[2]:
-            if 'Multiple Subtitle' in info[2] or 'MultiSub' in info[2] or 'POR-BR' in info[2]:
-                ep = dict()
-                ep['eps'] = [info[1]]
-                ep['links'] = [link]
-                lista[info[0]] = ep
-    else:
-        if info[1] in lista[info[0]]['eps']:
-            n = lista[info[0]]['eps'].index(info[1])
-            if 'HEVC' in info[2]:
-                if 'Multiple Subtitle' in info[2] or 'Multisub' in info[2] or 'POR-BR' in info[2]:
-                    lista[info[0]]['links'][n] = link
-        else:
-            if 'HEVC' in info[2] or '1080p' in info[2]:
-                if 'Multiple Subtitle' in info[2] or 'MultiSub' in info[2] or 'POR-BR' in info[2]:
-                    lista[info[0]]['eps'].append(info[1])
-                    lista[info[0]]['links'].append(link)
-    return lista
-
-def busca(pagina, lista=None):
-    if lista == None:
-        lista = dict()
-    animes = pagina.find_class('success')
-    for anime in animes:
-        nome = anime.findall('.td[2]/a')[-1].get('title')
-        try:
-            info = extrair_nome(nome)
-        except:
-            continue
-        if info != None:
-            link = anime.find('.td[3]/a[2]').get('href')
-            lista = filtrar(info, lista, link)
-        else:
-            continue
-    return lista
+def extrair_ep(anime: dict):
+    pagina = fromstring(requests.get(anime['link'], cookies=cookie).content)
+    eps = pagina.get_element_by_id('menu0').findall('table')
+    noar = {}
+    heavc = {}
+    for ep in eps:
+        if ep.find('tr/th/a').get('data-title') != 'Subtitle':
+            nome = ep.find('tr/th/a[2]').xpath('text()')[0].strip().split('-')[-1]
+            colchetes = re.findall(r'\((.*?)\)', nome)
+            if colchetes:
+                if 'HEVC' in colchetes and 'Chinese Audio' not in colchetes:
+                    nome = ' '.join(nome.split()[:-1]).strip()
+                    link = ep.find('tr[4]/th/a[2]').get('href')
+                    heavc[nome] = link
+                    continue
+            else:
+                link = ep.find('tr[4]/th/a[2]').get('href')
+                noar[nome.strip()] = link
+    filtro = heavc.copy()
+    filtro.update({k: v for k, v in noar.items() if k not in heavc})
+    anime['eps'] = filtro
+    return anime
+                
 
 def baixar_anime(anime):
     if not anime.ep:

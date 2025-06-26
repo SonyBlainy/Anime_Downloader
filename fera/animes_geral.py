@@ -38,8 +38,9 @@ def listar_episodios(anime_nome, anime_path):
                         with open(save_file, 'rb') as arquivo:
                             dados = pickle.load(arquivo)
                         link = dados.link
-                        link = re.findall(r'//(.*)\.', link)
-                        if not link:
+                        try:
+                            link = re.findall(r'//(.*)\.', link)[0]
+                        except:
                             link = dados.link
                         fontes = {'Erai': lambda x: 'Erai_'+x.nome_pesquisa, 'q1n': 'Bakashi', 'sakuraanimes': 'Sakura'}
                         if link in fontes.keys():

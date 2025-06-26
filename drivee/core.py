@@ -141,21 +141,13 @@ def escolher_anime_bakashi(animes: list|Anime, baixar=False):
     anime = episodios(anime)
     if not anime:
         return None
-    anime.ep = [Ep(ep['nome'], ep['link'], server='Bakashi') for ep in anime.ep]
+    anime.ep = [Ep(ep['nome'], ep['link'], server='Bakashi', estensao=ep['estensao']) for ep in anime.ep]
     anime.listar()
     if not anime.ep:
         return None
     if isinstance(anime.ep, list):
-        anime.ep = [player(ep) for ep in anime.ep]
         for ep in anime.ep:
-            if isinstance(ep, tuple):
-                logging.warning(f'Player não existe no episodio {ep[1].nome}')
-                return None
             ep.caminho += ep.estensao
     else:
-        anime.ep = player(anime.ep)
-        if isinstance(anime.ep, tuple):
-            logging.warning(f'Player não existe no episodio {anime.ep[1].nome}')
-            return None
         anime.ep.caminho += anime.ep.estensao
     return anime

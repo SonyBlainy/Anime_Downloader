@@ -1,7 +1,7 @@
 import requests
 from lxml.html import fromstring
+from urllib.parse import unquote
 import re
-import json
 
 def pesquisar(nome: str) -> list:
     api = 'https://q1n.net/'
@@ -28,41 +28,35 @@ def episodios(anime):
         link = ep.find_class('episodiotitle')[0].find('a')
         nome = link.text
         link = link.get('href')
-        lista.append({'nome': nome, 'link': link})
+        ep = player({'nome': nome, 'link': link})
+        if ep:
+            lista.append(ep)
     if not lista:
         return None
     anime.ep = lista
     return anime
 
 def player(ep):
-    r = fromstring(requests.get(ep.link).content)
+    r = fromstring(requests.get(ep['link']).content)
     pagina = r.find('.//div[@id="dooplay_player_content"]').findall('.div')[1:]
     pagina = [i.find('div/iframe').get('data-litespeed-src') for i in pagina]
-    fontes = {'rogeriobetin': lambda link: rogeriobetin(link), 'csst.online': lambda link: csst(link)}
+    pagina = [unquote(re.findall(r'\?url=(.*$)', i)[0]) for i in pagina]
+    fontes = {'csst.online': lambda link: ruplay(link)}
     for fonte in fontes.keys():
         for p in pagina:
             if fonte in p:
                 try:
-                    ep.link, ep.estensao = fontes[fonte](p)
+                    ep['link'], ep['estensao'] = fontes[fonte](p)
                     return ep
                 except:
                     continue
-    return None, ep
+    return None
 
-def csst(link):
+def ruplay(link):
     r = fromstring(requests.get(link).content)
     link = r.find('body/script').xpath('text()')[0]
     pattern = r'var player = new Playerjs\({[^}]*file:"([^"]+)"'
     t = re.findall(pattern, link)[-1]
     link = re.search(r'\[1080p\](.*$)', t).group(1)
     estensao = re.search(r'/[\d]*(\.[\w]*)/', link).group(1)
-    return link, estensao
-
-def rogeriobetin(link):
-    r = fromstring(requests.get(link).content)
-    javascipt = r.xpath('body/script[1]/text()')[0]
-    link = re.findall(r'sources: (.*?}\]),', javascipt)[0]
-    link = re.findall(r'({.*})\]', link)[0]
-    link = json.loads(link)['file']
-    estensao = re.findall(r'stream(\.m.*)\?', link)[0]
     return link, estensao

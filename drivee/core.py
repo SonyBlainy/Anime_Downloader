@@ -1,6 +1,6 @@
 from fera.animes_geral import obter_escolha_valida as ob
 from sakura import Sakura
-from bakashi.bakashi_anime import episodios, player
+from bakashi.bakashi_anime import episodios
 import logging
 from fera.animes_geral import verifica
 import os
@@ -88,15 +88,9 @@ def escolher_animes_erai(animes: dict):
         print('Nenhum anime encontrado')
         return None
     else:
-        print('='*30)
-        for i, anime in enumerate(animes.keys()):
-            print(f'[{i}] {anime}')
-        esco = ob('Escolha o anime ou digite sair: ', (0, len(animes)), True)
-        if not isinstance(esco, int):
-            return None
-        anime = Anime(list(animes.keys())[esco], 'Erai')
-        eps = animes[list(animes.keys())[esco]]
-        eps = [Ep('Episódio '+eps['eps'][ep], eps['links'][ep]) for ep in range(len(eps['eps']))].__reversed__()
+        anime = Anime(animes['nome'], 'Erai')
+        eps = list(animes['eps'].keys())
+        eps = [Ep('Episódio '+eps[i], animes['eps'][ep]) for i, ep in enumerate(eps)].__reversed__()
         anime.ep = list(eps)
         anime.listar()
         return anime

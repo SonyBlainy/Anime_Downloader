@@ -16,11 +16,14 @@ class CustomHandler(logging.Handler):
             quit()
 logging.basicConfig(filename='log.log', filemode='w', level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s')
+
 logger = logging.getLogger()
 logger.addHandler(CustomHandler())
+versao = 'v0.5.4'
 from sakura import Sakura
 from fera import animes_geral
 from fera import baixando
+from fera import update
 from bakashi import bakashi_anime
 from erai import nyaa
 from erai import torrent
@@ -32,8 +35,8 @@ while not sair:
     texto = 'Digite o anime que deseja baixar ou digite sair: '
     nenhum = 'Nenhum anime encontrado'
     print('='*30, 'MENU'.center(30), '='*30, '[1] Pesquisar um anime', '[2] Listar episódios baixados',
-          '[3] Qbit', '[0] Sair', sep='\n')
-    esco = ob('Escolha uma opção: ', (0,3))
+          '[3] Qbit', '[4] Atualizar', '[0] Sair', sep='\n')
+    esco = ob('Escolha uma opção: ', (0,4))
     if esco == 0:
         sair = True
     elif esco == 1:
@@ -152,3 +155,7 @@ while not sair:
                     if esco == 1:
                         qbit.parar(r['hash'])
                         logging.info(f'Torrent {r['name']} encerrado')
+    elif esco == 4:
+        link = update.atualizar(versao)
+        if not link:
+            print('O Anime Downloader já está na sua versão mais recente')

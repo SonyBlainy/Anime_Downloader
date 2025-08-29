@@ -40,7 +40,7 @@ def player(ep):
     r = fromstring(requests.get(ep['link']).content)
     pagina = r.find('.//div[@id="dooplay_player_content"]').findall('.div')[1:]
     pagina = [i.find('div/iframe').get('data-litespeed-src') for i in pagina]
-    pagina = [unquote(re.findall(r'\?url=(.*$)', i)[0]) for i in pagina]
+    pagina = [unquote(re.findall(r'\?url=(.*$)', i)[0]) for i in pagina if '?url=' in i]
     fontes = {'csst.online': lambda link: ruplay(link)}
     for fonte in fontes.keys():
         for p in pagina:

@@ -19,7 +19,7 @@ logging.basicConfig(filename='log.log', filemode='w', level=logging.DEBUG,
 
 logger = logging.getLogger()
 logger.addHandler(CustomHandler())
-versao = 'v0.5.4'
+versao = 'v0.5.5'
 from sakura import Sakura
 from fera import animes_geral
 from fera import baixando

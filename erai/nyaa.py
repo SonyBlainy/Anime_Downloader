@@ -8,7 +8,8 @@ import logging
 
 save = os.getenv('save')
 path = os.getenv('caminho')
-cookie = {'wordpress_logged_in_25c65adc7d24c2f6075a3cbdddcf4db0': 'sonyblainy%7C1782488870%7CtagV6OIs9GVUlh1bzkgWrcAwYfpElhFfxmC04xAO1PB%7C13cd2e304dcb43faa3f501f5ca7fb5300213fb4a2705b5be4c0dfcfc9112e399'}
+cookie = {'wordpress_logged_in_25c65adc7d24c2f6075a3cbdddcf4db0': 'sonyblainy%7C1782488870%7CtagV6OIs9GVUlh1bzkgWrcAwYfpElhFfxmC04xAO1PB%7C13cd2e304dcb43faa3f501f5ca7fb5300213fb4a2705b5be4c0dfcfc9112e399',
+    '__ddg5_': 'fjpDyDZhBkfRRaUj'}
 
 def pesquisar(nome:str):
     if len(nome.split()) > 1:
@@ -58,7 +59,7 @@ def extrair_ep(anime: dict):
                 link = ep.find('tr[4]/th/a[2]').get('href')
                 noar[nome.strip()] = link
     filtro = heavc.copy()
-    filtro.update({k: v for k, v in noar.items() if k not in heavc})
+    filtro.update({k: v for k, v in noar.items() if k not in heavc.keys()})
     anime['eps'] = filtro
     return anime
                 

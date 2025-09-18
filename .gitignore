@@ -9,3 +9,6 @@ log.log
 output
 setup.py
 Anime Downloader.spec
+ffmpeg.exe
+build
+dist

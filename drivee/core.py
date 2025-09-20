@@ -1,6 +1,9 @@
 from fera.animes_geral import obter_escolha_valida as ob
+from infinite import infinete
+from fera import baixando
 from sakura import Sakura
-from bakashi.bakashi_anime import episodios
+from erai import nyaa
+from bakashi import bakashi_anime
 import logging
 from fera.animes_geral import verifica
 import os
@@ -82,7 +85,8 @@ def tratar_nome(anime: Anime):
     logging.info(f'Nome do anime {limpo} tratado')
     return anime
 
-def escolher_animes_erai(animes: dict):
+def escolher_animes_erai(nome:str):
+    animes = nyaa.pesquisar(nome)
     if not animes:
         logging.warning('Nenhum anime encontrado')
         print('Nenhum anime encontrado')
@@ -93,10 +97,12 @@ def escolher_animes_erai(animes: dict):
         eps = [Ep('Episódio '+eps[i], animes['eps'][ep]) for i, ep in enumerate(eps)].__reversed__()
         anime.ep = list(eps)
         anime.listar()
-        return anime
+        nyaa.baixar_anime(anime)
         
-def escolher_anime_sakura(animes: list|Anime, baixar=False):
+def escolher_anime_sakura(nome=None, animes=None, baixar=False):
     if not baixar:
+        animes = Sakura.pesquisar_anime(nome)
+        animes = [Anime(anime['nome'], anime['link']) for anime in animes]
         if not animes:
             logging.info('Nenhum anime encontrado na Sakura')
             print('Nenhum anime entrado')
@@ -111,14 +117,23 @@ def escolher_anime_sakura(animes: list|Anime, baixar=False):
     else:
         anime = animes
     anime = Sakura.listar_episodios(anime)
+    anime.ep = [Ep(ep['nome'], ep['link'], server='Mediafire', estensao='.mp4') for ep in anime.ep]
     anime.listar()
     if not anime.ep:
         return None
+    if 'sakuraanimes' in anime.ep.link:
+        if isinstance(anime.ep, list):
+            anime.ep = [Sakura.sakura_link(ep) for ep in anime.ep]
+        else:
+            anime.ep = Sakura.sakura_link(anime.ep)
     anime.ep = Sakura.link_ep_mediafire(anime.ep)
-    return anime
+    anime.ep.caminho = os.path.join(os.path.split(anime.ep.caminho)[0], anime.ep.nome)
+    baixando.download_padrao(anime)
 
-def escolher_anime_bakashi(animes: list|Anime, baixar=False):
+def escolher_anime_bakashi(nome=None, animes=None, baixar=False):
     if not baixar:
+        animes = bakashi_anime.pesquisar(nome)
+        animes = [Anime(anime['nome'], anime['link']) for anime in animes]
         if not animes:
             logging.info('Nenhum anime encontrado no Bakashi')
             print('Nenhum anime encontrado')
@@ -132,7 +147,7 @@ def escolher_anime_bakashi(animes: list|Anime, baixar=False):
         anime = animes[esco]
     else:
         anime = animes
-    anime = episodios(anime)
+    anime = bakashi_anime.episodios(anime)
     if not anime:
         return None
     anime.ep = [Ep(ep['nome'], ep['link'], server='Bakashi', estensao=ep['estensao']) for ep in anime.ep]
@@ -144,4 +159,34 @@ def escolher_anime_bakashi(animes: list|Anime, baixar=False):
             ep.caminho += ep.estensao
     else:
         anime.ep.caminho += anime.ep.estensao
-    return anime
+    baixando.download_padrao(anime)
+
+def escolher_animes_infinite(nome=None, animes=None, baixar=False):
+    if not baixar:
+        animes = infinete.pesquisar(nome)
+        animes = [Anime(anime['nome'], anime['link']) for anime in animes]
+        if not animes:
+            logging.info('Nenhum anime encontrado no Infinite')
+            print('Nenhum anime encontrado')
+            return None
+        for i, anime in enumerate(animes):
+            print(f'[{i}] {anime.nome}')
+        esco = ob('Escolha um anime ou digite sair: ', (0, len(animes)), True)
+        if not isinstance(esco, int):
+            logging.info('Nenhum anime escolhido no Infinite')
+            return None
+        anime = animes[esco]
+    else:
+        anime = animes
+    anime = infinete.episodios(anime)
+    anime.ep = [Ep(ep['nome'], ep['link'], server='Mediafire', estensao='.mp4') for ep in anime.ep]
+    anime.listar()
+    if isinstance(anime.ep, list):
+        for ep in anime.ep:
+            ep.caminho += ep.estensao
+    else:
+        anime.ep.caminho += anime.ep.estensao
+    if not anime.ep:
+        return None
+    baixando.download_padrao(anime)
+    

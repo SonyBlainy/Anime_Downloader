@@ -19,13 +19,9 @@ logging.basicConfig(filename='log.log', filemode='w', level=logging.DEBUG,
 
 logger = logging.getLogger()
 logger.addHandler(CustomHandler())
-versao = 'v0.5.6'
-from sakura import Sakura
+versao = 'v0.6'
 from fera import animes_geral
-from fera import baixando
 from fera import update
-from bakashi import bakashi_anime
-from erai import nyaa
 from erai import torrent
 from drivee import core
 sair = False
@@ -40,74 +36,26 @@ while not sair:
     if esco == 0:
         sair = True
     elif esco == 1:
-        print('='*30, '[1] Erai', '[2] Sakura', '[3] Bakashi', sep='\n')
-        esco = ob('Escolha em qual site deseja pesquisar: ', (1, 3), True)
+        print('='*30, '[1] Erai', '[2] Sakura', '[3] Bakashi', '[4] Infinite', sep='\n')
+        esco = ob('Escolha em qual site deseja pesquisar: ', (1, 4), True)
         if not esco:
             continue
-        if esco == 2:
-            nome = str(input('Digite o nome do anime: '))
-            animes = Sakura.pesquisar_anime(nome)
-            if not animes:
-                logging.warning(nenhum)
-                print(nenhum)
-                continue
-            anime = core.escolher_anime_sakura(animes)
-            if not anime:
-                continue
-            baixando.download_padrao(anime)
-            if isinstance(anime.ep, list):
-                logging.info('episodios: '+', '.join([ep.nome for ep in anime.ep])+'baixados')
-            else:
-                logging.info(f'{anime.ep.nome} baixado')
-        elif esco == 3:
-            nome = str(input('Digite o nome do anime: '))
-            animes = bakashi_anime.pesquisar(nome)
-            if not animes:
-                logging.warning(nenhum)
-                print(nenhum)
-                continue
-            animes = [core.Anime(anime['nome'], anime['link']) for anime in animes]
-            anime = core.escolher_anime_bakashi(animes)
-            if not anime:
-                continue
-            baixando.download_padrao(anime)
-        elif esco == 1:
-            nome = str(input('Digite o nome do anime: '))
-            animes = nyaa.pesquisar(nome)
-            if not animes:
-                continue
-            anime = core.escolher_animes_erai(animes)
-            if not anime:
-                continue
-            nyaa.baixar_anime(anime)
+        nome = str(input('Digite o nome do anime: '))
+        fontes = {1: lambda nome: core.escolher_animes_erai(nome), 2: lambda nome: core.escolher_anime_sakura(nome),
+            3: lambda nome: core.escolher_anime_bakashi(nome), 4: lambda nome: core.escolher_animes_infinite(nome)}
+        fontes[esco](nome)
     elif esco == 2:
         r = animes_geral.listar()
         if r != None:
             if r.site == 'Bakashi':
-                anime = r
-                anime = core.escolher_anime_bakashi(anime, True)
-                if not anime:
-                    continue
-                baixando.download_padrao(anime)
+                core.escolher_anime_bakashi(animes=r, baixar=True)
             elif r.site == 'Sakura':
-                anime = r
-                anime = core.escolher_anime_sakura(anime, True)
-                if not anime:
-                    continue
-                baixando.download_padrao(anime)
-                if isinstance(anime.ep, list):
-                    logging.info('episodios: '+', '.join([ep.nome for ep in anime.ep])+'baixados')
-                else:
-                    logging.info(f'{anime.ep.nome} baixado')
+                core.escolher_anime_sakura(animes=r, baixar=True)
             elif r.site.split('_')[0] == 'Erai':
                 nome = r.site.split('_')[1].strip()
-                anime = nyaa.pesquisar(nome)
-                if not anime:
-                    continue
-                anime = core.escolher_animes_erai(anime)
-                if not anime:
-                    continue
-                nyaa.baixar_anime(anime)
+                core.escolher_animes_erai(nome)
+            elif r.site == 'Infinite':
+                core.escolher_animes_infinite(animes=r, baixar=True)
     elif esco == 3:
         try:
             qbit = torrent.Qbit()

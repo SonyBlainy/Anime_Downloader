@@ -19,60 +19,59 @@ def listar_animes():
 
 def listar_episodios(anime_nome, anime_path):
     try:
-        with os.scandir(anime_path) as eps:
-            episodios = list(eps)
-            if not episodios:
-                logging.warning(f'Nenhum episodio encontrado do anime {anime_nome}')
-                print('Nenhum episodio encontrado, baixe para adicionar')
+        eps = os.scandir(anime_path)
+        for i in eps:
+            if i.is_dir():
+                mutiplos_eps(anime_path, i.path)
+        episodios = list(os.scandir(anime_path))
+        if not episodios:
+            logging.warning(f'Nenhum episodio encontrado do anime {anime_nome}')
+            print('Nenhum episodio encontrado, baixe para adicionar')
+            return None
+        for i, ep in enumerate(episodios):
+            print(f'[{i}] {ep.name}')
+        print('='*30)
+        while True:
+            esco = input('Escolha um episódio, digite baixar ou sair: ')
+            if esco.upper() == 'SAIR':
                 return None
-            for i, ep in enumerate(episodios):
-                print(f'[{i}] {ep.name}')
-            print('='*30)
-            while True:
-                esco = input('Escolha um episódio, digite baixar ou sair: ')
-                if esco.upper() == 'SAIR':
-                    return None
-                elif esco.upper() == 'BAIXAR':
-                    save_file = os.path.join(save, anime_nome, 'save.txt')
+            elif esco.upper() == 'BAIXAR':
+                save_file = os.path.join(save, anime_nome, 'save.txt')
+                try:
+                    with open(save_file, 'rb') as arquivo:
+                        dados = pickle.load(arquivo)
+                    link = dados.link
                     try:
-                        with open(save_file, 'rb') as arquivo:
-                            dados = pickle.load(arquivo)
-                        link = dados.link
-                        try:
-                            link = re.findall(r'//(.*)\.', link)[0]
-                        except:
-                            link = dados.link
-                        fontes = {'Erai': lambda x: 'Erai_'+x.nome_pesquisa, 'q1n': 'Bakashi', 'sakuraanimes': 'Sakura'}
-                        if link in fontes.keys():
-                            try:
-                                dados.site = fontes[link](dados)    
-                            except:
-                                dados.site = fontes[link]
-                        return dados
-                    except FileNotFoundError:
-                        logging.warning(f'Save não encontrado para o anime {anime_nome}')
-                        print('Save não encontrado')
-                    except pickle.UnpicklingError as e:
-                        logging.error(f'Save do anime {anime_nome} corrompido')
-                        print('Save corrompido')
-                else:
-                    try:
-                        esco = int(esco)
+                        link = re.findall(r'//(.*)\.', link)[0]
                     except:
-                        logging.warning('Erro! opção invalida')
-                        print('Opção inválida, tente novamente')
+                        link = dados.link
+                    fontes = {'Erai': lambda x: 'Erai_'+x.nome_pesquisa, 'q1n': 'Bakashi',
+                               'sakuraanimes': 'Sakura', 'infinitefansub': 'Infinite'}
+                    if link in fontes.keys():
+                        try:
+                            dados.site = fontes[link](dados)    
+                        except:
+                            dados.site = fontes[link]
+                    return dados
+                except FileNotFoundError:
+                    logging.warning(f'Save não encontrado para o anime {anime_nome}')
+                    print('Save não encontrado')
+                except pickle.UnpicklingError as e:
+                    logging.error(f'Save do anime {anime_nome} corrompido')
+                    print('Save corrompido')
+            else:
+                try:
+                    esco = int(esco)
+                except:
+                    logging.warning('Erro! opção invalida')
+                    print('Opção inválida, tente novamente')
+                else:
+                    if 0 <= esco < len(episodios):
+                        logging.info(f'Abrindo episodio {episodios[esco].name} do anime {anime_nome}')
+                        os.startfile(episodios[esco].path)
                     else:
-                        if 0 <= esco < len(episodios):
-                            if episodios[esco].is_dir():
-                                logging.info(f'Movendo os episodios {episodios[esco].name} para o diretorio {anime_path}')
-                                mutiplos_eps(anime_path, episodios[esco].path)
-                                break
-                            else:
-                                logging.info(f'Abrindo episodio {episodios[esco].name} do anime {anime_nome}')
-                                os.startfile(episodios[esco].path)
-                        else:
-                            logging.warning(f'Episodio com indice {esco} não existe')
-                            print('Episódio não existe, tente novamente')
+                        logging.warning(f'Episodio com indice {esco} não existe')
+                        print('Episódio não existe, tente novamente')
     except OSError as e:
         logging.error(f'Erro ao acessar os episodios do anime {anime_nome}: {e}')
 

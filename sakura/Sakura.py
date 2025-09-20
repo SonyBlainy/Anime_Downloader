@@ -1,8 +1,6 @@
 import random
+import base64
 import json
-import cloudscraper
-import requests.cookies
-from drivee.core import Anime, Ep
 import requests
 from lxml.html import fromstring
 from ouo_bypass import ouo_bypass
@@ -35,21 +33,35 @@ def pesquisar_anime(anime):
         anime = anime.find('a')
         link = anime.get('href')
         nome = ' '.join(anime.text.split()[:-1])
-        animes.append(Anime(nome, link))
+        animes.append({'nome': nome, 'link': link})
     return animes
     
-def listar_episodios(anime: Anime):
+def listar_episodios(anime):
     resposta = fromstring(requests.get(anime.link).content)
-    links = resposta.find('.//div[@id="fhd"]')
-    media_fire = links.findall('table/tr/td/a')
-    for link in media_fire:
-        if link.text_content().strip() == 'Mediafire':
-            link = link.get('href')
-            break
-    link = fromstring(requests.get(link).content).find_class('w-full')[0].find('a').get('href')
-    link = ouo_bypass(link)['bypassed_link']
-    eps = mediafire_pasta(link)
-    anime.ep = eps
+    for a in ['fhd', 'hd']:
+        links = resposta.find(f'.//div[@id="{a}"]')
+        media_fire = links.findall('table[1]/tr/td/a')
+        if not media_fire:
+            continue
+        else:
+            try:
+                link = [a for a in media_fire if a.text_content().strip() == 'Mediafire'][0]
+            except:
+                eps = links.findall('table[2]/tr')
+                eps = [{'nome': e.find('td').text, 'link': e.find('td[2]/a').get('href')} for e in eps if e.find('td[2]/a/span').text == 'Mediafire']
+                anime.ep = eps
+            else:
+                link = fromstring(requests.get(link.get('href')).content).find_class('w-full')[0].find('a').get('href')
+                while True:
+                    try:
+                        link = ouo_bypass(link)['bypassed_link']
+                    except:
+                        continue
+                    else:
+                        break
+                eps = mediafire_pasta(link)
+                eps = [{'nome': e['filename'], 'link': e['links']['normal_download']} for e in eps]
+                anime.ep = eps
     return anime
     
 def mediafire_pasta(link: str):
@@ -58,29 +70,32 @@ def mediafire_pasta(link: str):
     parame = {'content_type': 'files', 'filter': 'all', 'order_by': 'name', 'order_direction': 'asc',
               'chunk': 1, 'version': 1.5, 'folder_key': key, 'response_format': 'json'}
     eps = json.loads(requests.get(api, params=parame).content)['response']['folder_content']['files']
-    eps = [Ep(ep['filename'], ep['links']['normal_download'], f'.{ep['filename'].split('.')[-1]}',
-              'Mediafire') for ep in eps]
     return eps
     
-def link_ep_mediafire(ep: Ep|list):
-    cloudpass = cloudscraper.create_scraper()
+def link_ep_mediafire(ep):
     if isinstance(ep, list):
         for e in ep:
-            while True:
-                pagina = fromstring(cloudpass.get(e.link).text)
-                link = pagina.find_class('download_link')[0].find('a[@id="downloadButton"]').get('href')
-                if 'download' in link:
-                    break
-                else:
-                    cloudpass = cloudscraper.create_scraper()
+            pagina = fromstring(requests.get(e.link).content)
+            link = pagina.find_class('download_link')[0].find('a[@id="downloadButton"]').get('data-scrambled-url')
+            link = base64.decodebytes(link.encode()).decode()
+            e.nome = pagina.find_class('dl-btn-label')[0].get('title')
             e.link = link
     else:
-        while True:
-            pagina = fromstring(cloudpass.get(ep.link).text)
-            link = pagina.find_class('download_link')[0].find('a[@id="downloadButton"]').get('href')
-            if 'download' in link:
-                break
-            else:
-                cloudpass = cloudscraper.create_scraper()
+        pagina = fromstring(requests.get(ep.link).content)
+        link = pagina.find_class('download_link')[0].find('a[@id="downloadButton"]').get('data-scrambled-url')
+        link = base64.decodebytes(link.encode()).decode()
+        ep.nome = pagina.find_class('dl-btn-label')[0].get('title')
         ep.link = link
+    return ep
+
+def sakura_link(ep):
+    link = fromstring(requests.get(ep.link).content).find_class('w-full')[0].find('a').get('href')
+    while True:
+        try:
+            link = ouo_bypass(link)['bypassed_link']
+        except:
+            continue
+        else:
+            break
+    ep.link = link
     return ep

@@ -19,7 +19,7 @@ logging.basicConfig(filename='log.log', filemode='w', level=logging.DEBUG,
 
 logger = logging.getLogger()
 logger.addHandler(CustomHandler())
-versao = 'v0.6'
+versao = 'v0.6.1'
 from fera import animes_geral
 from fera import update
 from erai import torrent

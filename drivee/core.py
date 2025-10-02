@@ -121,13 +121,17 @@ def escolher_anime_sakura(nome=None, animes=None, baixar=False):
     anime.listar()
     if not anime.ep:
         return None
-    if 'sakuraanimes' in anime.ep.link:
-        if isinstance(anime.ep, list):
+    if isinstance(anime.ep, list):
+        if 'sakuraanimes' in anime.ep[0].link:
             anime.ep = [Sakura.sakura_link(ep) for ep in anime.ep]
-        else:
-            anime.ep = Sakura.sakura_link(anime.ep)
+    else:
+        anime.ep = Sakura.sakura_link(anime.ep)
     anime.ep = Sakura.link_ep_mediafire(anime.ep)
-    anime.ep.caminho = os.path.join(os.path.split(anime.ep.caminho)[0], anime.ep.nome)
+    if isinstance(anime.ep, list):
+        for ep in anime.ep:
+            ep.caminho = os.path.join(os.path.split(ep.caminho)[0], ep.nome)
+    else:
+        anime.ep.caminho = os.path.join(os.path.split(anime.ep.caminho)[0], anime.ep.nome)
     baixando.download_padrao(anime)
 
 def escolher_anime_bakashi(nome=None, animes=None, baixar=False):

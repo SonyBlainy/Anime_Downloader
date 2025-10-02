@@ -77,13 +77,19 @@ def link_ep_mediafire(ep):
         for e in ep:
             pagina = fromstring(requests.get(e.link).content)
             link = pagina.find_class('download_link')[0].find('a[@id="downloadButton"]').get('data-scrambled-url')
-            link = base64.decodebytes(link.encode()).decode()
+            if not link:
+                link = pagina.find_class('download_link')[0].find('a[@id="downloadButton"]').get('href')
+            else:
+                link = base64.decodebytes(link.encode()).decode()
             e.nome = pagina.find_class('dl-btn-label')[0].get('title')
             e.link = link
     else:
         pagina = fromstring(requests.get(ep.link).content)
         link = pagina.find_class('download_link')[0].find('a[@id="downloadButton"]').get('data-scrambled-url')
-        link = base64.decodebytes(link.encode()).decode()
+        if not link:
+            link = pagina.find_class('download_link')[0].find('a[@id="downloadButton"]').get('href')
+        else:  
+            link = base64.decodebytes(link.encode()).decode()
         ep.nome = pagina.find_class('dl-btn-label')[0].get('title')
         ep.link = link
     return ep

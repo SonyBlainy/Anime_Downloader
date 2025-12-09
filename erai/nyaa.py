@@ -1,6 +1,6 @@
 import requests
+import json
 import re
-from fera.animes_geral import obter_escolha_valida as ob
 from erai import torrent
 from lxml.html import fromstring
 import os
@@ -8,15 +8,15 @@ import logging
 
 save = os.getenv('save')
 path = os.getenv('caminho')
-cookie = {'wordpress_logged_in_25c65adc7d24c2f6075a3cbdddcf4db0': 'sonyblainy%7C1782488870%7CtagV6OIs9GVUlh1bzkgWrcAwYfpElhFfxmC04xAO1PB%7C13cd2e304dcb43faa3f501f5ca7fb5300213fb4a2705b5be4c0dfcfc9112e399',
-    '__ddg5_': 'fjpDyDZhBkfRRaUj'}
+cookie = json.load(open('cookies.json'))
+header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'}
 
 def pesquisar(nome:str):
     if len(nome.split()) > 1:
         nome = '+'.join(nome.split())
     api = 'https://www.erai-raws.info/?s='+nome
     try:
-        reque = requests.get(api, cookies=cookie)
+        reque = requests.get(api, headers=header, cookies=cookie)
         if reque.status_code != 200:
             logging.error(f'Erro {reque.status_code} ao acessar a pagina do Erai')
         else:
@@ -29,23 +29,18 @@ def pesquisar(nome:str):
         link = anime.find('div/header/h2/a')
         nome = link.xpath('text()')[0]
         link = link.get('href')
-        resultado.append({'nome': nome, 'link': link})
-    print('='*30)
-    for i, a in enumerate(resultado):
-        print(f'[{i}] {a["nome"]}')
-    esco = ob('Escolha um anime ou digite sair: ', (0, len(resultado)), True)
-    if not isinstance(esco, int):
-        return None
-    resultado = resultado[esco]
-    resultado = extrair_ep(resultado)
+        pagina = fromstring(requests.get(link, headers=header, cookies=cookie).content)
+        imagem = pagina.find_class('entry-content-poster')[0].find('img').get('src')
+        imagem = requests.get(imagem).content
+        resultado.append({'nome': nome, 'link': link, 'imagem': imagem})
     return resultado
 
-def extrair_ep(anime: dict):
-    pagina = fromstring(requests.get(anime['link'], cookies=cookie).content)
+def extrair_ep(link: str):
+    pagina = fromstring(requests.get(link, headers=header, cookies=cookie).content)
     eps = pagina.get_element_by_id('menu0').findall('table')
     noar = {}
     heavc = {}
-    for ep in eps:
+    for ep in eps.__reversed__():
         if ep.find('tr/th/a').get('data-title') != 'Subtitle':
             nome = ep.find('tr/th/a[2]').xpath('text()')[0].strip().split('-')[-1]
             colchetes = re.findall(r'\((.*?)\)', nome)
@@ -60,10 +55,8 @@ def extrair_ep(anime: dict):
                 noar[nome.strip()] = link
     filtro = heavc.copy()
     filtro.update({k: v for k, v in noar.items() if k not in heavc.keys()})
-    anime['eps'] = filtro
-    return anime
+    return filtro
                 
-
 def baixar_anime(anime):
     if not anime.ep:
         return None

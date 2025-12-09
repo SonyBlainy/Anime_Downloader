@@ -1,22 +1,54 @@
-from fera.animes_geral import obter_escolha_valida as ob
+import requests
+import re
+import json
+from lxml.html import fromstring
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from infinite import infinete
 from fera import baixando
 from sakura import Sakura
 from erai import nyaa
 from bakashi import bakashi_anime
 import logging
-from fera.animes_geral import verifica
+import pickle
 import os
 
 path = os.getenv('caminho')
 save = os.getenv('save')
 
 class Anime:
-    def __init__(self, nome, link=None):
+    def __init__(self, nome, link, imagem, ep=None):
         self.nome_pesquisa = None
         self.nome = nome
+        self.nome_pesquisa = None
         self.link = link
-        self.ep = None
+        self.ep = ep
+        self.imagem = imagem
+        self.info = None
+        self.tratar_nome()
+        self.verifica()
+
+    def tratar_nome(self):
+        lista_negra = [':', '°', '?', '-', ',', '“', '”', '.']
+        limpo = ' '.join([''.join([letra for letra in palavra if letra not in lista_negra]) for palavra in self.nome.split()])
+        self.nome_pesquisa = self.nome
+        self.nome = limpo
+        logging.info(f'Nome do anime {limpo} tratado')
+
+    def verifica(self):
+        nome = '_'.join(self.nome.split())
+        anime_path = os.path.join(path, nome)
+        save_path = os.path.join(save, nome)
+        for d in (anime_path, save_path):
+            os.makedirs(d, exist_ok=True)
+        save_file = os.path.join(save_path, 'save.pkl')
+        if not os.path.isfile(save_file):
+            try:
+                with open(save_file, 'wb') as arquivo:
+                    pickle.dump(self, arquivo)
+                logging.info(f'Arquivo save criado para o anime {nome}')
+            except OSError as e:
+                logging.error(f'Erro ao criar save para o anime {nome}: {e}')
 
     def listar(self):
         print('='*30)
@@ -36,8 +68,6 @@ class Anime:
                     break
                 else:
                     print('Erro! Tente novamente')
-        self = tratar_nome(self)
-        verifica(self)
         if isinstance(esco, int):
             self.ep = self.ep[esco]
             if self.ep.server == 'Mediafire':
@@ -77,120 +107,67 @@ class Ep:
         self.server = server
         self.caminho = None
 
-def tratar_nome(anime: Anime):
-    lista_negra = [':', '°', '?', '-', ',', '“', '”', '.']
-    limpo = ' '.join([''.join([letra for letra in palavra if letra not in lista_negra]) for palavra in anime.nome.split()])
-    anime.nome_pesquisa = anime.nome
-    anime.nome = limpo
-    logging.info(f'Nome do anime {limpo} tratado')
-    return anime
+def pesquisar_tudo(nome:str):
+    erai = nyaa.pesquisar(nome)
+    sakura = None
+    q1n = None
+    dados = {'Erai': erai, 'Sakura': sakura, 'Q1n': q1n}
+    if dados['Erai']:
+        dados['Erai'] = [Anime(anime['nome'], anime['link'], anime['imagem']) for anime in dados['Erai']]
+    return dados
 
-def escolher_animes_erai(nome:str):
-    animes = nyaa.pesquisar(nome)
-    if not animes:
-        logging.warning('Nenhum anime encontrado')
-        print('Nenhum anime encontrado')
-        return None
-    else:
-        anime = Anime(animes['nome'], 'Erai')
-        eps = list(animes['eps'].keys())
-        eps = [Ep('Episódio '+eps[i], animes['eps'][ep]) for i, ep in enumerate(eps)].__reversed__()
-        anime.ep = list(eps)
-        anime.listar()
-        nyaa.baixar_anime(anime)
+def anime_info_pesquisa(anime):
+    api = 'https://api.myanimelist.net/v2'
+    client_id = 'a81a1ee7e886f2f0c54ec850594667a3'
+    header_1 = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'}
+    header = {'X-MAL-CLIENT-ID': client_id}
+    infos = ['title', 'start_date', 'end_date', 'mean', 'status', 'genres', 'num_episodes',
+             'start_season', 'broadcast', 'source', 'related_anime', 'related_manga', 'synopsis']
+    if 'erai-raws' in anime.link:
+        pagina = fromstring(requests.get(anime.link, cookies=json.load(open('cookies.json')), headers=header_1).content)
+        anime_id = pagina.find_class('entry-content')[0].find_class('entry-content-buttons')[-2]
+        anime_id = anime_id.findall('a')[-1].get('href')
+        anime_id = re.findall(r'anime/(.*)', anime_id)[0]
+    anime_info = requests.get(api+f'/anime/{anime_id}', params={'fields': ','.join(infos)}, headers=header)
+    anime.info = anime_info.json()
+    return anime
+    
+def escolher_ep_erai(anime: Anime):
+    eps = nyaa.extrair_ep(anime.link)
+    eps_list = [Ep(f'Episódio {e}', eps[e]) for e in eps.keys()]
+    return eps_list
         
 def escolher_anime_sakura(nome=None, animes=None, baixar=False):
-    if not baixar:
-        animes = Sakura.pesquisar_anime(nome)
-        animes = [Anime(anime['nome'], anime['link']) for anime in animes]
-        if not animes:
-            logging.info('Nenhum anime encontrado na Sakura')
-            print('Nenhum anime entrado')
-            return None
-        for i, anime in enumerate(animes):
-            print(f'[{i}] {anime.nome}')
-        esco = ob('Escolha um anime ou digite sair: ', (0, len(animes)), True)
-        if not isinstance(esco, int):
-            logging.info('Nenhum anime escolhido na Sakura')
-            return None
-        anime = animes[esco]
-    else:
-        anime = animes
-    anime = Sakura.listar_episodios(anime)
-    anime.ep = [Ep(ep['nome'], ep['link'], server='Mediafire', estensao='.mp4') for ep in anime.ep]
-    anime.listar()
-    if not anime.ep:
-        return None
-    if isinstance(anime.ep, list):
-        if 'sakuraanimes' in anime.ep[0].link:
-            anime.ep = [Sakura.sakura_link(ep) for ep in anime.ep]
-    else:
-        anime.ep = Sakura.sakura_link(anime.ep)
-    anime.ep = Sakura.link_ep_mediafire(anime.ep)
-    if isinstance(anime.ep, list):
-        for ep in anime.ep:
-            ep.caminho = os.path.join(os.path.split(ep.caminho)[0], ep.nome)
-    else:
-        anime.ep.caminho = os.path.join(os.path.split(anime.ep.caminho)[0], anime.ep.nome)
-    baixando.download_padrao(anime)
+    pass
 
 def escolher_anime_bakashi(nome=None, animes=None, baixar=False):
-    if not baixar:
-        animes = bakashi_anime.pesquisar(nome)
-        animes = [Anime(anime['nome'], anime['link']) for anime in animes]
-        if not animes:
-            logging.info('Nenhum anime encontrado no Bakashi')
-            print('Nenhum anime encontrado')
-            return None
-        for i, anime in enumerate(animes):
-            print(f'[{i}] {anime.nome}')
-        esco = ob('Escolha um anime ou digite sair: ', (0, len(animes)), True)
-        if not isinstance(esco, int):
-            logging.info('Nenhum anime escolhido no Bakashi')
-            return None
-        anime = animes[esco]
-    else:
-        anime = animes
-    anime = bakashi_anime.episodios(anime)
-    if not anime:
-        return None
-    anime.ep = [Ep(ep['nome'], ep['link'], server='Bakashi', estensao=ep['estensao']) for ep in anime.ep]
-    anime.listar()
-    if not anime.ep:
-        return None
-    if isinstance(anime.ep, list):
-        for ep in anime.ep:
-            ep.caminho += ep.estensao
-    else:
-        anime.ep.caminho += anime.ep.estensao
-    baixando.download_padrao(anime)
+    pass
 
 def escolher_animes_infinite(nome=None, animes=None, baixar=False):
-    if not baixar:
-        animes = infinete.pesquisar(nome)
-        animes = [Anime(anime['nome'], anime['link']) for anime in animes]
-        if not animes:
-            logging.info('Nenhum anime encontrado no Infinite')
-            print('Nenhum anime encontrado')
-            return None
-        for i, anime in enumerate(animes):
-            print(f'[{i}] {anime.nome}')
-        esco = ob('Escolha um anime ou digite sair: ', (0, len(animes)), True)
-        if not isinstance(esco, int):
-            logging.info('Nenhum anime escolhido no Infinite')
-            return None
-        anime = animes[esco]
-    else:
-        anime = animes
-    anime = infinete.episodios(anime)
-    anime.ep = [Ep(ep['nome'], ep['link'], server='Mediafire', estensao='.mp4') for ep in anime.ep]
-    anime.listar()
-    if isinstance(anime.ep, list):
-        for ep in anime.ep:
-            ep.caminho += ep.estensao
-    else:
-        anime.ep.caminho += anime.ep.estensao
-    if not anime.ep:
-        return None
-    baixando.download_padrao(anime)
+    pass
     
+def data_info(broadcast):
+    dia = broadcast['day_of_the_week']
+    hora = broadcast['start_time']
+    dias_da_semana = {'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thurday': 3,
+                      'Friday': 4, 'Saturday': 5, 'Sunday': 6}
+    dia_esperado = dias_da_semana[dia.capitalize()]
+    time = datetime.strptime(hora, '%H:%M').time()
+    now_jst = datetime.now(ZoneInfo('Asia/Tokyo'))
+    hj_jst = now_jst.date()
+    dia_s_jst = hj_jst.weekday()
+    days_ahead = (dia_esperado-dia_s_jst)%7
+    if days_ahead == 0 and now_jst.time() > time:
+        days_ahead = 7
+    dia_alvo = hj_jst + timedelta(days_ahead)
+    dt_jst = datetime.combine(dia_alvo, time).replace(tzinfo=ZoneInfo('Asia/Tokyo'))
+    data = dt_jst.astimezone(ZoneInfo('America/Sao_Paulo'))
+    return {'dia': data.strftime('%A'), 'hora': data.strftime('%H:%M')}
+
+def selecionar_ep(anime: Anime):
+    eps = {'erai-raws': lambda a: escolher_ep_erai(a)}
+    anime.ep = eps[re.findall(r'\.(.*)\.', anime.link)[0]](anime)
+    return anime
+
+def baixar_ep(anime: Anime):
+    pass

@@ -5,13 +5,15 @@ from lxml.html import fromstring
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from infinite import infinete
-from fera import baixando
+from ferramentas import baixando
 from sakura import Sakura
-from erai import nyaa
+from erai import nyaa, torrent
 from bakashi import bakashi_anime
 import logging
 import pickle
 import os
+import sys
+import subprocess
 
 path = os.getenv('caminho')
 save = os.getenv('save')
@@ -21,15 +23,15 @@ class Anime:
         self.nome_pesquisa = None
         self.nome = nome
         self.nome_pesquisa = None
+        self.caminho = None
         self.link = link
         self.ep = ep
         self.imagem = imagem
         self.info = None
         self.tratar_nome()
-        self.verifica()
 
     def tratar_nome(self):
-        lista_negra = [':', '°', '?', '-', ',', '“', '”', '.']
+        lista_negra = [':', '°', '?', '-', ',', '“', '”', '.', '\\', '/']
         limpo = ' '.join([''.join([letra for letra in palavra if letra not in lista_negra]) for palavra in self.nome.split()])
         self.nome_pesquisa = self.nome
         self.nome = limpo
@@ -38,6 +40,7 @@ class Anime:
     def verifica(self):
         nome = '_'.join(self.nome.split())
         anime_path = os.path.join(path, nome)
+        self.caminho = anime_path
         save_path = os.path.join(save, nome)
         for d in (anime_path, save_path):
             os.makedirs(d, exist_ok=True)
@@ -108,7 +111,10 @@ class Ep:
         self.caminho = None
 
 def pesquisar_tudo(nome:str):
-    erai = nyaa.pesquisar(nome)
+    try:
+        erai = nyaa.pesquisar(nome)
+    except:
+        erai = None
     sakura = None
     q1n = None
     dados = {'Erai': erai, 'Sakura': sakura, 'Q1n': q1n}
@@ -119,16 +125,16 @@ def pesquisar_tudo(nome:str):
 def anime_info_pesquisa(anime):
     api = 'https://api.myanimelist.net/v2'
     client_id = 'a81a1ee7e886f2f0c54ec850594667a3'
-    header_1 = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'}
-    header = {'X-MAL-CLIENT-ID': client_id}
+    header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'}
+    header_mal = {'X-MAL-CLIENT-ID': client_id}
     infos = ['title', 'start_date', 'end_date', 'mean', 'status', 'genres', 'num_episodes',
              'start_season', 'broadcast', 'source', 'related_anime', 'related_manga', 'synopsis']
     if 'erai-raws' in anime.link:
-        pagina = fromstring(requests.get(anime.link, cookies=json.load(open('cookies.json')), headers=header_1).content)
+        pagina = fromstring(requests.get(anime.link, cookies=json.load(open('cookies.json')), headers=header).content)
         anime_id = pagina.find_class('entry-content')[0].find_class('entry-content-buttons')[-2]
         anime_id = anime_id.findall('a')[-1].get('href')
         anime_id = re.findall(r'anime/(.*)', anime_id)[0]
-    anime_info = requests.get(api+f'/anime/{anime_id}', params={'fields': ','.join(infos)}, headers=header)
+    anime_info = requests.get(api+f'/anime/{anime_id}', params={'fields': ','.join(infos)}, headers=header_mal)
     anime.info = anime_info.json()
     return anime
     
@@ -169,5 +175,49 @@ def selecionar_ep(anime: Anime):
     anime.ep = eps[re.findall(r'\.(.*)\.', anime.link)[0]](anime)
     return anime
 
-def baixar_ep(anime: Anime):
-    pass
+def baixar_ep_erai(ep: Ep):
+    qbit = torrent.Qbit()
+    if qbit.sessao:
+        qbit.baixar(ep)
+
+def anime_info(anime_caminho):
+    with os.scandir(anime_caminho) as arquivos:
+        for a in arquivos:
+            arquivo = a.path
+            break
+    return pickle.load(open(arquivo, 'rb'))
+
+def listar_anime():
+    result = []
+    with os.scandir(save) as i:
+        for a in i:
+            infos = anime_info(a.path)
+            result.append(infos)
+    return result
+
+def listar_ep(anime: Anime):
+    arquivos = []
+    if anime.caminho:
+        with os.scandir(anime.caminho) as i:
+            for a in i:
+                arquivos.append(a)
+        if arquivos:
+            return arquivos
+        else:
+            return None
+    else:
+        return None
+
+def update(versao):
+    link = 'https://api.github.com/repos/SonyBlainy/Anime_Downloader/releases/latest'
+    r = requests.get(link)
+    data = r.json()
+    if data['tag_name'] != versao:
+        link = data['assets'][0]['browser_download_url']
+        caminho = os.path.expandvars(r'%temp%\anime_downloader_temp')
+        os.makedirs(caminho, exist_ok=True)
+        caminho = os.path.join(caminho, 'instalador.exe')
+        subprocess.run(['powershell', '-NoProfile', '-Command', 'wget', link, '-O', caminho],
+                    encoding='utf-8')
+        os.startfile(caminho)
+        sys.exit()

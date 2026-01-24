@@ -2,6 +2,7 @@ import os
 from path_qbittorrent import caminho_qbit
 import psutil
 import requests
+import subprocess
 
 class Qbit():
     def __init__(self):
@@ -14,7 +15,8 @@ class Qbit():
             caminho_qbit()
         lista = [processo.info['name'] for processo in psutil.process_iter(['name'])]
         if not 'qbittorrent.exe' in lista:
-            os.system('powershell -Command \"qbittorrent.exe\"')
+            subprocess.run(['powershell', '-NoProfile', '-Command', '\"qbittorrent.exe\"'],
+                           encoding='utf-8')
         sessao = requests.Session()
         para = {'username': 'admin', 'password': 'admin123'}
         header = {'Referer': 'http://127.0.0.1:8080'}

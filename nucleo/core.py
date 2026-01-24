@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from infinite import infinete
 from ferramentas import baixando
 from sakura import Sakura
-from erai import nyaa, torrent
+from erai import erai_animes, torrent
 from bakashi import bakashi_anime
 import logging
 import pickle
@@ -112,7 +112,7 @@ class Ep:
 
 def pesquisar_tudo(nome:str):
     try:
-        erai = nyaa.pesquisar(nome)
+        erai = erai_animes.pesquisar(nome)
     except:
         erai = None
     sakura = None
@@ -139,7 +139,7 @@ def anime_info_pesquisa(anime):
     return anime
     
 def escolher_ep_erai(anime: Anime):
-    eps = nyaa.extrair_ep(anime.link)
+    eps = erai_animes.extrair_ep(anime.link)
     eps_list = [Ep(f'Episódio {e}', eps[e]) for e in eps.keys()]
     return eps_list
         

@@ -53,55 +53,6 @@ class Anime:
             except OSError as e:
                 logging.error(f'Erro ao criar save para o anime {nome}: {e}')
 
-    def listar(self):
-        print('='*30)
-        for i, ep in enumerate(self.ep):
-            print(f'[{i}] {ep.nome}')
-        while True:
-            esco = input('Escolha qual episódio deseja baixar, ou digite sair: ')
-            if esco.upper() == 'SAIR':
-                self.ep = None
-                break
-            try:
-                esco = int(esco)
-                if 0 <= esco < len(self.ep):
-                    break
-            except:
-                if '-' in esco:
-                    break
-                else:
-                    print('Erro! Tente novamente')
-        if isinstance(esco, int):
-            self.ep = self.ep[esco]
-            if self.ep.server == 'Mediafire':
-                logging.info(f'Episodio {self.nome} escolhido para download')
-                self.ep.caminho = os.path.join(path, '_'.join(self.nome.split()), self.ep.nome)
-            elif self.ep.server == 'Bakashi':
-                logging.info(f'Episodio numero {' '.join(self.ep.nome.split()[1:])} escolhido para download')
-                self.ep.nome = '_'.join(self.nome.split())+'_'+'_'.join(self.ep.nome.split())
-                self.ep.caminho = os.path.join(path, '_'.join(self.nome.split()), self.ep.nome)
-            else:
-                logging.info(f'Episodio numero {self.ep.nome.split()[1]} escolhido para download')
-                self.ep.caminho = os.path.join(path, '_'.join(self.nome.split()))
-        elif not self.ep:
-            pass
-        else:
-            self.ep = [self.ep[int(e)] for e in esco.split('-')]
-            if self.ep[0].server == 'Mediafire':
-                for ep in self.ep:
-                    ep.caminho = os.path.join(path, '_'.join(self.nome.split()), ep.nome)
-                logging.info(f'{len(self.ep)} episodios escolhidos para download')
-            elif self.ep[0].server == 'Bakashi':
-                for ep in self.ep:
-                    ep.nome = '_'.join(self.nome.split())+'_'+'_'.join(ep.nome.split())
-                    ep.caminho = os.path.join(path, '_'.join(self.nome.split()), ep.nome)
-                logging.info(f'{len(self.ep)} episodios escolhidos para download')
-            else:
-                for ep in self.ep:
-                    ep.caminho = os.path.join(path, '_'.join(self.nome.split()))
-                logging.info(f'Episodios '+', '.join([nep.nome.split()[1] for nep in self.ep])+'escolhidos para download')
-        logging.info(f'Path do anime {self.nome} gerado')
-
 class Ep:
     def __init__(self, nome, link, estensao=None, server=None):
         self.nome = nome
@@ -118,8 +69,9 @@ def pesquisar_tudo(nome:str):
     sakura = None
     q1n = None
     dados = {'Erai': erai, 'Sakura': sakura, 'Q1n': q1n}
-    if dados['Erai']:
-        dados['Erai'] = [Anime(anime['nome'], anime['link'], anime['imagem']) for anime in dados['Erai']]
+    for chave in dados.keys():
+        if dados[chave]:
+            dados[chave] = [Anime(anime['nome'], anime['link'], anime['imagem']) for anime in dados[chave]]
     return dados
 
 def anime_info_pesquisa(anime):

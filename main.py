@@ -61,11 +61,10 @@ class AnimeDownloaderGUI(ctk.CTk):
         update.pack(pady=5, anchor='nw')
         linha_v.pack(fill='y', padx=5, side='left', anchor='nw')
 
-    def anime_exibir(self, anime_info, anime_poster, menu_principal=False):
+    def anime_exibir(self, anime_info, anime_poster):
         self.clear_frame()
         self.tela_base()
-        if not menu_principal:
-            anime_info = core.anime_info_pesquisa(anime_info)
+        anime_info = core.anime_info_pesquisa(anime_info)
         anime_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
         anime_frame.pack(expand=True, fill='both', side='left')
         anime_nome = ctk.CTkLabel(anime_frame, text=anime_info.nome_pesquisa, font=('Arial', 18, 'bold'))
@@ -96,7 +95,8 @@ class AnimeDownloaderGUI(ctk.CTk):
         try:
             info_hora = core.data_info(anime_info.info['broadcast'])
         except:
-            dia_lancamento = ctk.CTkLabel(info_anime, text='Hora de exibição: Erro ao obter')
+            logging.warning(f'Erro ao obter as informações sobre horarios, informação não disponivel')
+            dia_lancamento = None
         else:
             dia_lancamento = ctk.CTkLabel(info_anime, text=f'Hora de exibição: {self.tradutor.translate(info_hora['dia'])} as {info_hora['hora']}')
         season = ctk.CTkLabel(info_anime, text=f'Season: {self.tradutor.translate(anime_info.info['start_season']['season']).capitalize()} de {anime_info.info['start_season']['year']}')
@@ -104,7 +104,8 @@ class AnimeDownloaderGUI(ctk.CTk):
         nota.pack(pady=2, padx=5, anchor='nw')
         genero.pack(pady=2, padx=5, anchor='nw')
         data.pack(pady=2, padx=5, anchor='nw')
-        dia_lancamento.pack(pady=2, padx=5, anchor='nw')
+        if dia_lancamento:
+            dia_lancamento.pack(pady=2, padx=5, anchor='nw')
         fonte.pack(pady=2, padx=5, anchor='nw')
         season.pack(pady=2, padx=5, anchor='nw')
         status.pack(pady=2, padx=5, anchor='nw')
@@ -114,17 +115,22 @@ class AnimeDownloaderGUI(ctk.CTk):
         sinopse = ctk.CTkLabel(info_frame_infi, text=f'Sinopse: {sinopse}', font=('Arial', 14),
                                wraplength=1175)
         sinopse.pack(pady=5, padx=5, anchor='nw')
-        #print(anime_info.info)
 
     def download_anime(self, anime):
         self.clear_frame()
         self.tela_base()
         anime = core.selecionar_ep(anime)
-        with os.scandir(anime.caminho) as i:
-            try:
-                eps_baixados = [re.findall(r'- (\d*) \[1080p', ep.name)[0] for ep in i]
-            except:
-                eps_baixados = []
+        if anime.caminho:
+            with os.scandir(anime.caminho) as i:
+                if anime.info['num_episodes'] == len(i):
+                    marcar_todos = True
+                try:
+                    eps_baixados = [re.findall(r'- (\w\w) \[1080p', ep.name)[0] for ep in i]
+                except Exception as e:
+                    logging.exception(f'Erro {e} ao obter lista de eps baixados, de um dos seguintes arquivos: {[ep.name for ep in os.scandir(anime.caminho)]}')
+                    eps_baixados = []
+        else:
+            eps_baixados = []
         frame_principal = ctk.CTkFrame(self.main_frame)
         frame_principal.pack(pady=5, padx=5, fill='both', expand=True, anchor='nw')
         frame_anime = ctk.CTkFrame(frame_principal, fg_color='transparent')
@@ -147,7 +153,7 @@ class AnimeDownloaderGUI(ctk.CTk):
         for i, ep in enumerate(anime.ep):
             botao_check = ctk.CTkCheckBox(frame_linha, text=ep.nome, font=('Arial', 12))
             botao_check.pack(pady=5, padx=5, anchor='nw', side='left')
-            if ep.nome.split()[1] in eps_baixados:
+            if ep.nome.split()[1] in eps_baixados or marcar_todos:
                 botao_check.select()
                 botao_check.configure(state='disabled')
             if (i+1)%5 == 0 and i != 0 and i != len(anime.ep)-1:
@@ -164,8 +170,11 @@ class AnimeDownloaderGUI(ctk.CTk):
                 if botao.get():
                     eps.append(botao.cget('text'))
         eps_baixar = [ep for ep in anime.ep if ep.nome in eps and ep.nome.split()[1] not in baixados]
-        anime.verifica()
+        veri = False
         for ep in eps_baixar:
+            if not veri:
+                anime.verifica()
+                veri = True
             ep.caminho = anime.caminho
             core.baixar_ep_erai(ep)
         self.menu_principal()
@@ -203,6 +212,7 @@ class AnimeDownloaderGUI(ctk.CTk):
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     frame = Image.fromarray(frame)
                 except:
+                    logging.warning('Erro ao obter frame', exc_info=True)
                     continue
                 else:
                     tamanho = (frame.width/5.2, frame.height/5.2)
@@ -227,14 +237,13 @@ class AnimeDownloaderGUI(ctk.CTk):
         animes_frame.pack(pady=5, fill='both', expand=True, side='left', anchor='nw')
         frame_nome = ctk.CTkFrame(animes_frame, fg_color='transparent')
         frame_nome.pack(fill='x', expand=True)
-        try:
+        if any(fonte for fonte in animes.values()):
             quanti = ctk.CTkLabel(frame_nome, text=f'{len(animes['Erai'])} animes encontrados',
                                   font=('Arial', 18, 'bold'))
-        except:
+            quanti.pack(anchor='ne')
+        else:
             quanti = ctk.CTkLabel(animes_frame, text='Nenhum anime encontrado', font=('Arial', 18, 'bold'))
             quanti.pack()
-        else:
-            quanti.pack(anchor='ne')
         if animes['Erai']:
             nome_erai = ctk.CTkLabel(frame_nome, text='Erai', font=('Arial', 18, 'bold'))
             nome_erai.pack(padx=10, anchor='nw', side='left')
@@ -306,7 +315,7 @@ class AnimeDownloaderGUI(ctk.CTk):
                 poster = ctk.CTkLabel(linha, image=imagem_poster, text=anime.nome_pesquisa, font=('Arial', 14),
                                       compound='top', wraplength=comprimento+10, justify='center')
                 poster.pack(pady=5, padx=5, anchor='nw', side='left')
-                poster.bind('<Button-1>', lambda event, a=anime, i=imagem_poster: self.anime_exibir(a, i, True))
+                poster.bind('<Button-1>', lambda event, a=anime, i=imagem_poster: self.anime_exibir(a, i))
                 if i%4 == 0 and i != 0 and i != len(animes)-1:
                     linha = ctk.CTkFrame(animes_frame, fg_color='transparent')
                     linha.pack(pady=5, padx=5, fill='x', anchor='nw')

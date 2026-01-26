@@ -21,7 +21,7 @@ class CustomHandler(logging.Handler):
     def emit(self, record):
         if record.levelno >= logging.ERROR:
             os.startfile('log.log')
-versao = 'v1.0.2'
+versao = 'v1.0.3'
 from nucleo import core
 
 class AnimeDownloaderGUI(ctk.CTk):

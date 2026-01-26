@@ -15,7 +15,7 @@ class Qbit():
             caminho_qbit()
         lista = [processo.info['name'] for processo in psutil.process_iter(['name'])]
         if not 'qbittorrent.exe' in lista:
-            subprocess.run(['powershell', '-NoProfile', '-Command', '\"qbittorrent.exe\"'],
+            subprocess.run(['powershell', '-NoProfile', '-Command', 'qbittorrent.exe'],
                            encoding='utf-8')
         sessao = requests.Session()
         para = {'username': 'admin', 'password': 'admin123'}

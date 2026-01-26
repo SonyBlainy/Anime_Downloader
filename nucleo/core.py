@@ -14,6 +14,7 @@ import pickle
 import os
 import sys
 import subprocess
+import shutil
 
 path = os.getenv('caminho')
 save = os.getenv('save')
@@ -144,7 +145,10 @@ def listar_anime():
     with os.scandir(save) as i:
         for a in i:
             infos = anime_info(a.path)
-            result.append(infos)
+            if os.path.exists(infos.caminho):
+                result.append(infos)
+            else:
+                shutil.rmtree(a.path)
     return result
 
 def listar_ep(anime: Anime):

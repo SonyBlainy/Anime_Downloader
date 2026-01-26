@@ -1,7 +1,7 @@
 import os
 def configurar_diretorios():
-    caminhos = {'animes': os.path.join(r'C:\Users', os.getlogin(), 'Desktop', 'Animes'),
-                'save': os.path.expandvars(r'%LOCALAPPDATA%\Anime_downloader')}
+    caminhos = {'animes': os.path.join(os.path.expandvars(r'%userprofile%'), 'Desktop', 'Animes'),
+                'save': os.path.expandvars(r'%localappdata%\Anime_downloader')}
     for pasta in (i for i in caminhos.values()):
         os.makedirs(pasta, exist_ok=True)
     os.environ.update({'caminho': caminhos['animes'], 'save': caminhos['save']})
@@ -21,7 +21,7 @@ class CustomHandler(logging.Handler):
     def emit(self, record):
         if record.levelno >= logging.ERROR:
             os.startfile('log.log')
-versao = 'v1.0.1'
+versao = 'v1.0.2'
 from nucleo import core
 
 class AnimeDownloaderGUI(ctk.CTk):
@@ -119,10 +119,11 @@ class AnimeDownloaderGUI(ctk.CTk):
     def download_anime(self, anime):
         self.clear_frame()
         self.tela_base()
+        marcar_todos = False
         anime = core.selecionar_ep(anime)
         if anime.caminho:
             with os.scandir(anime.caminho) as i:
-                if anime.info['num_episodes'] == len(i):
+                if anime.info['num_episodes'] == len(os.listdir(anime.caminho)):
                     marcar_todos = True
                 try:
                     eps_baixados = [re.findall(r'- (\w\w) \[1080p', ep.name)[0] for ep in i]

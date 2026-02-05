@@ -6,9 +6,13 @@ def configurar_diretorios():
         os.makedirs(pasta, exist_ok=True)
     os.environ.update({'caminho': caminhos['animes'], 'save': caminhos['save']})
 configurar_diretorios()
+import sys
 from multiprocessing import freeze_support
 from deep_translator import GoogleTranslator as GT
 from datetime import datetime
+import asyncio
+from async_tkinter_loop import async_handler, async_mainloop
+from async_tkinter_loop.mixins import AsyncCTk
 import customtkinter as ctk
 import logging
 from PIL import Image
@@ -21,20 +25,22 @@ class CustomHandler(logging.Handler):
     def emit(self, record):
         if record.levelno >= logging.ERROR:
             os.startfile('log.log')
-versao = 'v1.0.3'
+            sys.exit()
+versao = 'v1.1'
 from nucleo import core
 
-class AnimeDownloaderGUI(ctk.CTk):
+class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
     def __init__(self):
         super().__init__()
         self.title(f'Anime Downloader {versao}')
         self.geometry(f'{self.winfo_screenwidth()}x{self.winfo_screenheight()}')
         self.main_frame = ctk.CTkFrame(self)
         self.main_frame.pack(fill='both', expand=True, padx=10, pady=10)
-        self.state('zoomed')
+        self.animes = None
+        self.after(10, lambda: self.state('zoomed'))
         self.tradutor = GT(source='en', target='pt')
-        self.menu_principal()
-
+        self.after(0, lambda: asyncio.create_task(self.iniciar()))
+    
     def tela_base(self):
         botoes_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
         icone_biblioteca = ctk.CTkImage(imagem_biblioteca, size=(24,24))
@@ -45,26 +51,53 @@ class AnimeDownloaderGUI(ctk.CTk):
         linha_h = ctk.CTkFrame(self.main_frame, height=4, corner_radius=2)
         linha_v = ctk.CTkFrame(self.main_frame, width=4, corner_radius=2)
         pesquisa = ctk.CTkButton(botoes_frame, image=icone_pesquisar,
-                                  compound='left', fg_color='transparent', text='Pesquisar', command=self.pesquisar)
+                                  compound='left', fg_color='transparent', text='Pesquisar',
+                                  command=async_handler(self.pesquisar))
         biblioteca = ctk.CTkButton(botoes_frame, image=icone_biblioteca,
-                                    compound='left', fg_color='transparent', text='Biblioteca', command=self.menu_principal)
+                                    compound='left', fg_color='transparent', text='Biblioteca',
+                                    command=self.menu_principal)
         download = ctk.CTkButton(botoes_frame, image=icone_download,
-                                 compound='left', fg_color='transparent', text='Downloads', command=self.downloads)
+                                 compound='left', fg_color='transparent', text='Downloads',
+                                 command=async_handler(self.downloads))
         update = ctk.CTkButton(botoes_frame, image=icone_update,
-                               text='Update', fg_color='transparent', compound='left', command=lambda: core.update(versao))
+                               text='Update', fg_color='transparent', compound='left',
+                               command=lambda: asyncio.create_task(core.update(versao)))
         anime_texto.pack(pady=20, anchor='w')
         linha_h.pack(fill='x')
         botoes_frame.pack(side='left', anchor='nw')
         pesquisa.pack(pady=5, anchor='nw')
         biblioteca.pack(pady=5, anchor='nw')
-        #download.pack(pady=5, anchor='nw')
+        download.pack(pady=5, anchor='nw')
         update.pack(pady=5, anchor='nw')
         linha_v.pack(fill='y', padx=5, side='left', anchor='nw')
-
-    def anime_exibir(self, anime_info, anime_poster):
+    
+    async def iniciar(self):
         self.clear_frame()
         self.tela_base()
-        anime_info = core.anime_info_pesquisa(anime_info)
+        frame_log = ctk.CTkFrame(self.main_frame)
+        frame_log.pack(fill='both', expand=True)
+        texto = ctk.CTkLabel(frame_log, text='Procurando animes baixados...', font=('Arial', 15))
+        texto.pack(anchor='nw', padx=5, pady=5)
+        animes = core.listar_anime()
+        texto = ctk.CTkLabel(frame_log, text=f'{len(animes)} animes encontrados', font=('Arial', 15))
+        texto.pack(anchor='nw', padx=5, pady=5)
+        texto = ctk.CTkLabel(frame_log, text=f'Obtendo as informações do {len(animes)} animes...', font=('Arial', 15))
+        texto.pack(anchor='nw', pady=5, padx=5)
+        animes = [core.anime_info_pesquisa(a) for a in animes]
+        animes = await asyncio.gather(*animes)
+        self.animes = animes
+        texto = ctk.CTkLabel(frame_log, text='Informações obtidas', font=('Arial', 15))
+        texto.pack(anchor='nw', padx=5, pady=5)
+        self.menu_principal()
+
+
+    async def anime_exibir(self, anime_info, anime_poster, pesquisa=False):
+        if pesquisa:
+            anime_info = await core.anime_info_pesquisa(anime_info)
+        self.clear_frame()
+        self.tela_base()
+        estacoes = {'Spring': 'Primavera', 'Summer': 'Verão', 'Autumn': 'Outono',
+                    'Fall': 'Outono', 'Winter': 'Inverno'}
         anime_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
         anime_frame.pack(expand=True, fill='both', side='left')
         anime_nome = ctk.CTkLabel(anime_frame, text=anime_info.nome_pesquisa, font=('Arial', 18, 'bold'))
@@ -78,11 +111,19 @@ class AnimeDownloaderGUI(ctk.CTk):
         info_frame_infi = ctk.CTkFrame(anime_frame)
         botao_frame = ctk.CTkFrame(info_frame_sup, fg_color='transparent')
         botao_frame.pack(padx=2, pady=5, fill='x')
-        botao_download = ctk.CTkButton(botao_frame, text='Download', command=lambda: self.download_anime(anime_info))
+        botao_download = ctk.CTkButton(botao_frame, text='Download',
+                                       command=lambda: asyncio.create_task(self.download_anime(anime_info)))
         botao_download.pack(padx=2, anchor='nw', side='left')
         if anime_info.caminho:
             botao_listar_ep = ctk.CTkButton(botao_frame, text='Listar Episódios', command=lambda: self.listar_ep(anime_info))
             botao_listar_ep.pack(padx=10, anchor='nw', side='left')
+            pasta = ctk.CTkButton(botao_frame, text='Abrir pasta',
+                                  command=lambda: core.abrir_pasta(anime_info.caminho))
+            pasta.pack(padx=2, anchor='nw', side='left')
+            deletar = ctk.CTkButton(botao_frame, text='Excluir anime',
+                                    command=lambda: core.deletar_anime(anime_info.caminho))
+            deletar.pack(padx=10, anchor='nw', side='left')
+            deletar.bind('<Button-1>', lambda: asyncio.create_task(self.menu_principal()))
         data = datetime.strptime(anime_info.info['start_date'], "%Y-%m-%d")
         data = data.strftime("%d/%m/%Y")
         data = ctk.CTkLabel(info_anime, text=f'Data de lançamento: {data}',
@@ -99,7 +140,7 @@ class AnimeDownloaderGUI(ctk.CTk):
             dia_lancamento = None
         else:
             dia_lancamento = ctk.CTkLabel(info_anime, text=f'Hora de exibição: {self.tradutor.translate(info_hora['dia'])} as {info_hora['hora']}')
-        season = ctk.CTkLabel(info_anime, text=f'Season: {self.tradutor.translate(anime_info.info['start_season']['season']).capitalize()} de {anime_info.info['start_season']['year']}')
+        season = ctk.CTkLabel(info_anime, text=f'Season: {estacoes[anime_info.info['start_season']['season'].capitalize()]} de {anime_info.info['start_season']['year']}')
         fonte = ctk.CTkLabel(info_anime, text=f'Fonte: {anime_info.info['source'].capitalize()}')
         nota.pack(pady=2, padx=5, anchor='nw')
         genero.pack(pady=2, padx=5, anchor='nw')
@@ -116,17 +157,17 @@ class AnimeDownloaderGUI(ctk.CTk):
                                wraplength=1175)
         sinopse.pack(pady=5, padx=5, anchor='nw')
 
-    def download_anime(self, anime):
+    async def download_anime(self, anime):
         self.clear_frame()
         self.tela_base()
         marcar_todos = False
-        anime = core.selecionar_ep(anime)
+        anime = await core.selecionar_ep(anime)
         if anime.caminho:
             with os.scandir(anime.caminho) as i:
                 if anime.info['num_episodes'] == len(os.listdir(anime.caminho)):
                     marcar_todos = True
                 try:
-                    eps_baixados = [re.findall(r'- (\w\w) \[1080p', ep.name)[0] for ep in i]
+                    eps_baixados = [re.findall(r'- (\w{2,4}) \[1080p', ep.name)[0] for ep in i]
                 except Exception as e:
                     logging.exception(f'Erro {e} ao obter lista de eps baixados, de um dos seguintes arquivos: {[ep.name for ep in os.scandir(anime.caminho)]}')
                     eps_baixados = []
@@ -145,9 +186,9 @@ class AnimeDownloaderGUI(ctk.CTk):
         frame_eps.pack(padx=5, pady=5, anchor='nw', side='left')
         frame_direita = ctk.CTkFrame(frame_principal, fg_color='transparent')
         frame_direita.pack(anchor='ne')
-        botao_download = ctk.CTkButton(frame_direita, text='Baixar eps selecionados', command=lambda: self.baixar_eps(frame_eps, anime, eps_baixados))
+        botao_download = ctk.CTkButton(frame_direita, text='Baixar eps selecionados', command=lambda: asyncio.create_task(self.baixar_eps(frame_eps, anime, eps_baixados)))
         botao_download.pack(pady=5, anchor='nw')
-        botao_tudo = ctk.CTkButton(frame_direita, text='Baixar todos os eps disponiveis', command=lambda: self.baixar_tudo(anime, eps_baixados))
+        botao_tudo = ctk.CTkButton(frame_direita, text='Baixar todos os eps disponiveis', command=lambda: asyncio.create_task(self.baixar_tudo(anime, eps_baixados)))
         botao_tudo.pack(pady=5, anchor='nw')
         frame_linha = ctk.CTkFrame(frame_eps, fg_color='transparent')
         frame_linha.pack(pady=5, padx=5, anchor='nw')
@@ -161,10 +202,27 @@ class AnimeDownloaderGUI(ctk.CTk):
                 frame_linha = ctk.CTkFrame(frame_eps, fg_color='transparent')
                 frame_linha.pack(pady=5, padx=5, anchor='nw')
         
-    def downloads(self):
-        pass
+    async def downloads(self):
+        self.clear_frame()
+        self.tela_base()
+        infos = await core.torrent_info()
+        print(infos)
+        frame_principal = ctk.CTkScrollableFrame(self.main_frame, fg_color='transparent')
+        frame_principal.pack(fill='both', expand=True)
+        frame_nome = ctk.CTkFrame(frame_principal, fg_color='transparent')
+        frame_nome.pack(fill='x', anchor='nw', expand=True)
+        n_anime = ctk.CTkLabel(frame_nome, text=f'{len(infos.keys())} animes encontrados', font=('Arial', 18, 'bold'))
+        n_anime.pack(anchor='nw')
+        for anime in infos.keys():
+            anime_frame = ctk.CTkFrame(frame_principal, fg_color='transparent')
+            anime_frame.pack(anchor='nw', fill='x', expand=True, pady=10)
+            imagem = Image.open(io.BytesIO(infos[anime]['anime'].imagem))
+            tamanho = (imagem.width//3, imagem.height//3)
+            imagem = ctk.CTkImage(imagem, size=tamanho)
+            imagem_poster = ctk.CTkLabel(anime_frame, text=None, image=imagem)
+            imagem_poster.pack(anchor='nw', side='left')
 
-    def baixar_eps(self, frame: ctk.CTkFrame, anime, baixados):
+    async def baixar_eps(self, frame: ctk.CTkFrame, anime, baixados):
         eps = []
         for f in frame.winfo_children():
             for botao in f.winfo_children():
@@ -177,15 +235,17 @@ class AnimeDownloaderGUI(ctk.CTk):
                 anime.verifica()
                 veri = True
             ep.caminho = anime.caminho
-            core.baixar_ep_erai(ep)
+        eps_baixar = [core.baixar_ep_erai(ep) for ep in eps]
+        await asyncio.gather(*eps_baixar)
         self.menu_principal()
         
-    def baixar_tudo(self, anime, baixados):
+    async def baixar_tudo(self, anime, baixados):
         anime.verifica()
         for ep in anime.ep:
             if ep.nome.split()[1] not in baixados:
                 ep.caminho = anime.caminho
-                core.baixar_ep_erai(ep)
+        eps = [core.baixar_ep_erai(ep) for ep in anime.ep]
+        await asyncio.gather(*eps)
         self.menu_principal()
 
     def listar_ep(self, anime):
@@ -203,37 +263,47 @@ class AnimeDownloaderGUI(ctk.CTk):
             linha.pack(pady=5, fill='x', anchor='nw')
             cont = 0
             for i, ep in enumerate(arquivos):
-                try:
-                    video = cv2.VideoCapture(ep.path)
-                    frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-                    n = random.randint(0, frames-1)
-                    video.set(cv2.CAP_PROP_POS_FRAMES, n)
-                    _, frame = video.read()
-                    video.release()
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    frame = Image.fromarray(frame)
-                except:
-                    logging.warning('Erro ao obter frame', exc_info=True)
-                    continue
-                else:
-                    tamanho = (frame.width/5.2, frame.height/5.2)
-                    poster = ctk.CTkImage(frame, size=tamanho)
-                    ep_poster = ctk.CTkLabel(linha, image=poster, text=ep.name, font=('Arial', 14),
-                                             wraplength=tamanho[0]+10, compound='top', justify='center')
-                    ep_poster.pack(padx=5, anchor='nw', side='left')
-                    ep_poster.bind('<Button-1>', lambda event, a=ep.path: os.startfile(a))
-                    cont += 1
-                    if cont == 3 and i != len(arquivos)-1:
-                        cont = 0
-                        linha = ctk.CTkFrame(eps_frame, fg_color='transparent')
-                        linha.pack(pady=5, fill='x', anchor='nw')
+                    logging.info(f'Obtendo frame do arquivo {ep.name}')
+                    try:
+                        video = cv2.VideoCapture(ep.path)
+                        if not video.isOpened():
+                            raise OSError('Arquivo não abre')
+                        frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+                        if frames < 100:
+                            raise ValueError('Arquivo provavelmente corrompido')
+                        n = random.randint(10, frames-1)
+                        video.set(cv2.CAP_PROP_POS_FRAMES, n)
+                        ok, frame = video.read()
+                        if not ok:
+                            raise ValueError('Erro ao ler o frame')
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        frame = Image.fromarray(frame)
+                    except OSError:
+                        logging.warning(f'Erro ao abrir o arquivo {ep.name}, pulando episódio')
+                    except:
+                        logging.warning(f'Erro no arquivo {ep.name}')
+                    else:
+                        tamanho = (frame.width/5.2, frame.height/5.2)
+                        poster = ctk.CTkImage(frame, size=tamanho)
+                        ep_poster = ctk.CTkLabel(linha, image=poster, text=ep.name, font=('Arial', 14),
+                                                wraplength=tamanho[0]+10, compound='top', justify='center')
+                        ep_poster.pack(padx=5, anchor='nw', side='left')
+                        ep_poster.bind('<Button-1>', lambda event, a=ep.path: os.startfile(a))
+                        cont += 1
+                        if cont == 3 and i != len(arquivos)-1:
+                            cont = 0
+                            linha = ctk.CTkFrame(eps_frame, fg_color='transparent')
+                            linha.pack(pady=5, fill='x', anchor='nw')
+                    finally:
+                        if 'video' in locals():
+                            video.release()
         else:
             pass
 
-    def pesquisar_anime(self, nome):
-        animes = core.pesquisar_tudo(nome)
+    async def pesquisar_anime(self, nome):
         self.clear_frame()
         self.tela_base()
+        animes = await core.pesquisar_tudo(nome)
         animes_frame = ctk.CTkScrollableFrame(self.main_frame)
         animes_frame.pack(pady=5, fill='both', expand=True, side='left', anchor='nw')
         frame_nome = ctk.CTkFrame(animes_frame, fg_color='transparent')
@@ -251,28 +321,27 @@ class AnimeDownloaderGUI(ctk.CTk):
             erai_frame = ctk.CTkFrame(animes_frame, fg_color='transparent')
             erai_frame.pack(pady=5, padx=5, anchor='nw', expand=True)
             for i, anime in enumerate(animes['Erai']):
-                while True:
-                    try:
-                        if isinstance(anime.imagem, io.BufferedReader):
-                            imagem_arquivo = Image.open(anime.imagem)
-                        else:
-                            imagem_arquivo = Image.open(io.BytesIO(anime.imagem))
-                    except:
-                        continue
+                try:
+                    if isinstance(anime.imagem, io.BufferedReader):
+                        imagem_arquivo = Image.open(anime.imagem)
                     else:
-                        break
+                        imagem_arquivo = Image.open(io.BytesIO(anime.imagem))
+                except:
+                    logging.warning(f'Erro ao carregar imagem do anime {anime.nome_pesquisa}')
+                    continue
                 comprimento = imagem_arquivo.width//4
                 tamanho = (comprimento, imagem_arquivo.height//4)
                 imagem = ctk.CTkImage(imagem_arquivo, size=tamanho)
                 anime_imagem = ctk.CTkLabel(erai_frame, image=imagem, text=anime.nome_pesquisa,
                                             compound='top', font=('Arial', 14), wraplength=comprimento)
                 anime_imagem.pack(pady=10, padx=10, side='left')
-                anime_imagem.bind('<Button-1>', lambda event, a=anime, img=imagem: self.anime_exibir(a, img))
+                anime_imagem.bind('<Button-1>',
+                                  lambda event, a=anime, img=imagem: asyncio.create_task(self.anime_exibir(a, img, True)))
                 if (i+1)%5 == 0 and i!=0 and i!=len(animes['Erai'])-1:
                     erai_frame = ctk.CTkFrame(animes_frame, fg_color='transparent')
                     erai_frame.pack(pady=5, padx=10, anchor='nw', expand=True)
 
-    def pesquisar(self):
+    async def pesquisar(self):
         self.clear_frame()
         self.tela_base()
         barra_pesquisa = ctk.CTkEntry(self.main_frame,
@@ -285,7 +354,7 @@ class AnimeDownloaderGUI(ctk.CTk):
                                       border_width=1
                                       )
         barra_pesquisa.pack(pady=20)
-        barra_pesquisa.bind('<Return>', lambda e: self.pesquisar_anime(barra_pesquisa.get()))
+        barra_pesquisa.bind('<Return>', lambda e: asyncio.create_task(self.pesquisar_anime(barra_pesquisa.get())))
         barra_pesquisa.focus()
 
     def clear_frame(self):
@@ -295,7 +364,7 @@ class AnimeDownloaderGUI(ctk.CTk):
     def menu_principal(self):
         self.clear_frame()
         self.tela_base()
-        animes = core.listar_anime()
+        animes = self.animes
         if animes:
             n_animes_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
             n_animes_frame.pack(fill='x', pady=5)
@@ -316,7 +385,8 @@ class AnimeDownloaderGUI(ctk.CTk):
                 poster = ctk.CTkLabel(linha, image=imagem_poster, text=anime.nome_pesquisa, font=('Arial', 14),
                                       compound='top', wraplength=comprimento+10, justify='center')
                 poster.pack(pady=5, padx=5, anchor='nw', side='left')
-                poster.bind('<Button-1>', lambda event, a=anime, i=imagem_poster: self.anime_exibir(a, i))
+                poster.bind('<Button-1>', lambda event, a=anime,
+                            i=imagem_poster: asyncio.create_task(self.anime_exibir(a, i)))
                 if i%4 == 0 and i != 0 and i != len(animes)-1:
                     linha = ctk.CTkFrame(animes_frame, fg_color='transparent')
                     linha.pack(pady=5, padx=5, fill='x', anchor='nw')
@@ -335,4 +405,5 @@ if __name__ == '__main__':
     logger = logging.getLogger()
     logger.addHandler(CustomHandler())
     app = AnimeDownloaderGUI()
-    app.mainloop()
+    async_mainloop(app)
+    core.fechar()

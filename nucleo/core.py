@@ -1,3 +1,4 @@
+from httpx import AsyncClient as Client
 import requests
 import re
 import json
@@ -15,6 +16,8 @@ import os
 import sys
 import subprocess
 import shutil
+import asyncio
+from async_tkinter_loop import async_handler
 
 path = os.getenv('caminho')
 save = os.getenv('save')
@@ -62,10 +65,11 @@ class Ep:
         self.server = server
         self.caminho = None
 
-def pesquisar_tudo(nome:str):
+async def pesquisar_tudo(nome:str):
     try:
-        erai = erai_animes.pesquisar(nome)
+        erai = await erai_animes.pesquisar(nome)
     except:
+        logging.exception('Erro ao obter animes de erai')
         erai = None
     sakura = None
     q1n = None
@@ -75,7 +79,7 @@ def pesquisar_tudo(nome:str):
             dados[chave] = [Anime(anime['nome'], anime['link'], anime['imagem']) for anime in dados[chave]]
     return dados
 
-def anime_info_pesquisa(anime):
+async def anime_info_pesquisa(anime):
     api = 'https://api.myanimelist.net/v2'
     client_id = 'a81a1ee7e886f2f0c54ec850594667a3'
     header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'}
@@ -83,16 +87,19 @@ def anime_info_pesquisa(anime):
     infos = ['title', 'start_date', 'end_date', 'mean', 'status', 'genres', 'num_episodes',
              'start_season', 'broadcast', 'source', 'related_anime', 'related_manga', 'synopsis']
     if 'erai-raws' in anime.link:
-        pagina = fromstring(requests.get(anime.link, cookies=json.load(open('cookies.json')), headers=header).content)
-        anime_id = pagina.find_class('entry-content')[0].find_class('entry-content-buttons')[-2]
-        anime_id = anime_id.findall('a')[-1].get('href')
-        anime_id = re.findall(r'anime/(.*)', anime_id)[0]
-    anime_info = requests.get(api+f'/anime/{anime_id}', params={'fields': ','.join(infos)}, headers=header_mal)
-    anime.info = anime_info.json()
+        async with Client(headers=header, cookies=json.load(open('cookies.json'))) as client:
+            pagina = await client.get(anime.link)
+            pagina = fromstring(pagina.content)
+            anime_id = pagina.find_class('entry-content')[0].find_class('entry-content-buttons')[-2]
+            anime_id = anime_id.findall('a')[-1].get('href')
+            anime_id = re.findall(r'anime/(.*)', anime_id)[0]
+    async with Client(headers=header_mal, params={'fields': ','.join(infos)}) as client:
+        anime_info = await client.get(api+f'/anime/{anime_id}')
+        anime.info = anime_info.json()
     return anime
     
-def escolher_ep_erai(anime: Anime):
-    eps = erai_animes.extrair_ep(anime.link)
+async def escolher_ep_erai(anime: Anime):
+    eps = await erai_animes.extrair_ep(anime.link)
     eps_list = [Ep(f'Episódio {e}', eps[e]) for e in eps.keys()]
     return eps_list
         
@@ -123,15 +130,16 @@ def data_info(broadcast):
     data = dt_jst.astimezone(ZoneInfo('America/Sao_Paulo'))
     return {'dia': data.strftime('%A'), 'hora': data.strftime('%H:%M')}
 
-def selecionar_ep(anime: Anime):
-    eps = {'erai-raws': lambda a: escolher_ep_erai(a)}
-    anime.ep = eps[re.findall(r'\.(.*)\.', anime.link)[0]](anime)
+async def selecionar_ep(anime: Anime):
+    eps = {'erai-raws': escolher_ep_erai}
+    anime.ep = await eps[re.findall(r'\.(.*)\.', anime.link)[0]](anime)
     return anime
 
-def baixar_ep_erai(ep: Ep):
+async def baixar_ep_erai(ep: Ep):
     qbit = torrent.Qbit()
+    await qbit.init_sessao()
     if qbit.sessao:
-        qbit.baixar(ep)
+        await qbit.baixar(ep)
 
 def anime_info(anime_caminho):
     with os.scandir(anime_caminho) as arquivos:
@@ -177,3 +185,33 @@ def update(versao):
                     encoding='utf-8')
         os.startfile(caminho)
         sys.exit()
+
+def abrir_pasta(caminho: str):
+    subprocess.run(['powershell', '-NoProfile', '-Command', 'explorer', caminho],
+                   encoding='utf-8',
+                   creationflags=subprocess.CREATE_NO_WINDOW)
+    
+def deletar_anime(caminho: str):
+    shutil.rmtree(caminho)
+
+def fechar():
+    pass
+
+async def torrent_info():
+    qbit = torrent.Qbit()
+    await qbit.init_sessao()
+    info = await qbit.infos()
+    animes = {}
+    for i in info:
+        try:
+            nome = i['name']
+            if re.findall(r'(\[Erai-raws\]) ', nome)[0]:
+                anime_nome = os.path.split(i['save_path'])[-1]
+                anime = pickle.load(open(os.path.join(save, os.path.split(i['save_path'])[-1], 'save.pkl'), 'rb'))
+                if anime_nome not in animes.keys():
+                    animes[anime_nome] = {'anime': anime, 'hashs': [i['hash']]}
+                else:
+                    animes[anime_nome]['hashs'].append(i['hash'])
+        except:
+            logging.exception('Erro ao obter downloads')
+    return animes

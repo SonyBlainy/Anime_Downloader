@@ -1,5 +1,6 @@
 from httpx import AsyncClient as Client
-import requests
+import navegador
+import zipfile
 import re
 import json
 from lxml.html import fromstring
@@ -10,6 +11,7 @@ from ferramentas import baixando
 from sakura import Sakura
 from erai import erai_animes, torrent
 from bakashi import bakashi_anime
+from random import randint
 import logging
 import pickle
 import os
@@ -17,7 +19,9 @@ import sys
 import subprocess
 import shutil
 import asyncio
-from async_tkinter_loop import async_handler
+import cv2
+from customtkinter import CTkLabel, CTkFrame
+from PIL import Image
 
 path = os.getenv('caminho')
 save = os.getenv('save')
@@ -64,6 +68,10 @@ class Ep:
         self.estensao = estensao
         self.server = server
         self.caminho = None
+
+def divisor(lista, tamanho=5):
+    for i in range(0, len(lista), tamanho):
+        yield lista[i:i+tamanho]
 
 async def pesquisar_tudo(nome:str):
     try:
@@ -142,11 +150,13 @@ async def baixar_ep_erai(ep: Ep):
         await qbit.baixar(ep)
 
 def anime_info(anime_caminho):
-    with os.scandir(anime_caminho) as arquivos:
-        for a in arquivos:
-            arquivo = a.path
-            break
-    return pickle.load(open(arquivo, 'rb'))
+    arquivos = os.listdir(anime_caminho)
+    if len(arquivos) > 1:
+        caminho = arquivos[1]
+    else:
+        caminho = arquivos[0]
+    with open(os.path.join(anime_caminho, caminho), 'rb') as arquivo:
+        return pickle.load(arquivo)
 
 def listar_anime():
     result = []
@@ -172,19 +182,20 @@ def listar_ep(anime: Anime):
     else:
         return None
 
-def update(versao):
+async def update(versao):
     link = 'https://api.github.com/repos/SonyBlainy/Anime_Downloader/releases/latest'
-    r = requests.get(link)
-    data = r.json()
-    if data['tag_name'] != versao:
-        link = data['assets'][0]['browser_download_url']
-        caminho = os.path.expandvars(r'%temp%\anime_downloader_temp')
-        os.makedirs(caminho, exist_ok=True)
-        caminho = os.path.join(caminho, 'instalador.exe')
-        subprocess.run(['powershell', '-NoProfile', '-Command', 'wget', link, '-O', caminho],
-                    encoding='utf-8')
-        os.startfile(caminho)
-        sys.exit()
+    async with Client() as client:
+        r = await client.get(link)
+        data = r.json()
+        if data['tag_name'] != versao:
+            link = data['assets'][0]['browser_download_url']
+            caminho = os.path.expandvars(r'%temp%\anime_downloader_temp')
+            os.makedirs(caminho, exist_ok=True)
+            caminho = os.path.join(caminho, 'instalador.exe')
+            subprocess.run(['powershell', '-NoProfile', '-Command', 'wget', link, '-UseBasicParsing',
+                            '-O', caminho], encoding='utf-8')
+            os.startfile(caminho)
+    sys.exit()
 
 def abrir_pasta(caminho: str):
     subprocess.run(['powershell', '-NoProfile', '-Command', 'explorer', caminho],
@@ -215,3 +226,84 @@ async def torrent_info():
         except:
             logging.exception('Erro ao obter downloads')
     return animes
+
+def gerar_frames(anime: Anime, anime_path: str):
+    eps = listar_ep(anime)
+    lista_frames = []
+    for ep in eps:
+        frames_ep = []
+        try:
+            video = cv2.VideoCapture(ep.path)
+            if not video.isOpened():
+                raise OSError('Arquivo não abre')
+            frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+            if frames < 100:
+                raise ValueError('Arquivo provavelmente corrompido')
+            n = randint(10, frames-1)
+            video.set(cv2.CAP_PROP_POS_FRAMES, n)
+            ok, frame = video.read()
+            if not ok:
+                raise ValueError('Erro ao ler o frame')
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = Image.fromarray(frame)
+        except OSError:
+            logging.warning(f'Erro ao abrir o arquivo {ep.name}, pulando episódio')
+        except:
+            logging.warning(f'Erro no arquivo {ep.name}')
+        else:
+            tamanho = (int(frame.width/4), int(frame.height/4))
+            frame = frame.resize(tamanho)
+            frames_ep.append(frame)
+            for _ in range(4):
+                n = randint(10, frames-1)
+                video.set(cv2.CAP_PROP_POS_FRAMES, n)
+                ok, frame = video.read()
+                if ok:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    frame = Image.fromarray(frame)
+                    frame = frame.resize(tamanho)
+                    frames_ep.append(frame)
+        finally:
+            if 'video' in locals():
+                video.release()
+        lista_frames.append(frames_ep)
+    with open(os.path.join(anime_path, 'frames.pkl'), 'wb') as arquivo:
+        pickle.dump(lista_frames, arquivo)
+
+def carregar_frames(frame_path: str):
+    with open(os.path.join(frame_path, 'frames.pkl'), 'rb') as arquivo:
+        return pickle.load(arquivo)
+
+def label_log(frame: CTkFrame, texto: str):
+    label = CTkLabel(frame, text=texto, font=('Arial', 15))
+    return label
+
+def deletar_frames(anime_caminho):
+    anime_caminho = os.path.join(save, os.path.split(anime_caminho)[-1])
+    with os.scandir(anime_caminho) as i:
+        for arquivo in i:
+            if arquivo.name == 'frames.pkl':
+                os.remove(arquivo.path)
+
+async def obter_cookies():
+    cookies = await navegador.cookies()
+    lista_cookies = [{i['name']: i['value']} for i in cookies if 'wordpress_logged_in' in i['name']][0]
+    with open('cookies.json', 'w') as arquivo:
+        json.dump(lista_cookies, arquivo, indent=4)
+
+def verificar_navegador():
+    if not os.path.exists(r'.\chrome-win64'):
+        user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36'
+        link = 'https://cdn.playwright.dev/builds/cft/147.0.7727.15/win64/chrome-win64.zip'
+        subprocess.run(['powershell', '-NoProfile', '-Command', 'curl.exe', '-L', '--progress-bar',
+                        '-A', f'"{user_agent}"', '-o', 'chrome.zip', f'"{link}"'])
+        with zipfile.ZipFile('chrome.zip') as arquivo:
+            arquivo.extractall('.')
+        os.remove('chrome.zip')
+
+async def verifica_cookies():
+    cookie = json.load(open('cookies.json'))
+    for a in cookie.keys():
+        if 'wordpress_logged_in' in a:
+            return
+    await obter_cookies()

@@ -1,4 +1,5 @@
 from httpx import AsyncClient as Client
+from httpx import ReadTimeout
 import json
 import re
 from lxml.html import fromstring
@@ -22,16 +23,17 @@ def divisao_lista(lista, tamanho=5):
 async def pagina_anime(link):
     cookie = json.load(open('cookies.json'))
     async with Client(headers=header, cookies=cookie) as client:
-        anime = await client.get(link) #Adicionar httpx.ReadTimeout
+        try:
+            anime = await client.get(link)
+        except ReadTimeout:
+            return None
         anime = fromstring(anime.content)
         nome = anime.get_element_by_id('main').find('.//h1').xpath('text()')[0]
-        imagem = anime.find_class('entry-content-poster')[0].find('img').get('src')
-        try:
-            imagem = await client.get(imagem)
-            imagem = imagem.content
-        except:
-            imagem = open(r'icones\erro.png', 'rb')
-    return {'nome': nome, 'link': link, 'imagem': imagem}
+        id = anime.find_class('entry-content')[0].find_class('entry-content-buttons')[-2]
+        id = [a for a in id.findall('a') if a.xpath('text()')[0] == 'MAL'][0]
+        id = id.get('href')
+        id = re.search(r'anime/(\d*)', id).group(1)
+    return {'nome': nome, 'link': link, 'id': id}
 
 async def pesquisar(nome:str):
     cookie = json.load(open('cookies.json'))
@@ -58,7 +60,7 @@ async def pesquisar(nome:str):
     resultado = [pagina_anime(anime) for anime in animes]
     for chunk in divisao_lista(resultado):
         c = await asyncio.gather(*chunk)
-        lista.extend(c)
+        lista.extend([a for a in c if a])
     return lista
 
 async def extrair_ep(link: str):

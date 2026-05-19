@@ -1,7 +1,7 @@
 import os
 def configurar_diretorios():
-    caminhos = {'animes': os.path.join(os.path.expandvars(r'%userprofile%'), 'Desktop', 'Animes'),
-                'save': os.path.expandvars(r'%localappdata%\Anime_downloader')}
+    caminhos = {'animes': os.path.join(os.path.expandvars(r'%userprofile%'), 'Desktop', 'Animes_teste'),
+                'save': os.path.expandvars(r'%localappdata%\Anime_downloader_teste')}
     for pasta in (i for i in caminhos.values()):
         os.makedirs(pasta, exist_ok=True)
     os.environ.update({'caminho': caminhos['animes'], 'save': caminhos['save']})
@@ -19,6 +19,7 @@ from PIL import Image
 import io
 import random
 import re
+import pandas as pd
 
 class CustomHandler(logging.Handler):
     def emit(self, record):
@@ -75,51 +76,16 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
         self.tela_base()
         frame_log = ctk.CTkFrame(self.main_frame)
         frame_log.pack(fill='both', expand=True)
-        texto = core.label_log(frame_log, 'Procurando animes baixados...')
-        texto.pack(anchor='nw', pady=5, padx=5)
-        animes_lista = core.listar_anime()
-        texto = core.label_log(frame_log, f'{len(animes_lista)} animes encontrados')
-        texto.pack(anchor='nw', padx=5, pady=5)
-        texto = core.label_log(frame_log, f'Obtendo as infomações de {len(animes_lista)} animes...')
-        texto.pack(anchor='nw', pady=5, padx=5)
-        animes_lista = [core.anime_info_pesquisa(a) for a in animes_lista]
-        animes = []
-        while True:
-            try:
-                for chunk in core.divisor(animes_lista):
-                    a = await asyncio.gather(*chunk)
-                    animes.extend(a)
-            except IndexError:
-                await core.obter_cookies()
-                animes_lista = core.listar_anime()
-                animes_lista = [core.anime_info_pesquisa(a) for a in animes_lista]
-                animes = []
-            except:
-                logging.exception('Erro Critico')
-            else:
-                break
-        for a in animes:
-            a.info['synopsis'] = self.tradutor.translate('.'.join(a.info['synopsis'].split('.')[:-1]))
-        texto = core.label_log(frame_log, 'Infomações obtidas')
-        texto.pack(anchor='nw', padx=5, pady=5)
-        texto = core.label_log(frame_log, f'Buscando frames dos episodios de {len(animes)} animes...')
-        texto.pack(anchor='nw', padx=5, pady=5)
-        with os.scandir(save) as i:
-            for n, anime in enumerate(i):
-                texto = core.label_log(frame_log, f'Procurando frames para o anime {animes[n].nome}')
-                self.main_frame.update()
-                texto.pack(anchor='nw', padx=5, pady=5)
-                if 'frames.pkl' in os.listdir(anime.path):
-                    texto = core.label_log(frame_log, 'Arquivo encontrado, carrengando frames...')
-                    texto.pack(anchor='nw', padx=5, pady=5)
-                    self.main_frame.update()
-                    animes[n].frames = core.carregar_frames(anime.path)
-                else:
-                    texto = core.label_log(frame_log, f'Arquivo com frames não encontrado, gerando arquivo...')
-                    texto.pack(anchor='nw', pady=5, padx=5)
-                    self.main_frame.update()
-                    core.gerar_frames(animes[n], anime.path)
-        self.animes = animes
+        if not os.path.exists('dados.parquet'):
+            core.label_log(frame_log, 'Arquivo de dados não existe').pack(anchor='nw', pady=5, padx=5)
+            await asyncio.sleep(1)
+            core.label_log(frame_log, 'Gerando arquivo e apagando qualquer anime existente...').pack(anchor='nw', padx=5, pady=5)
+            await asyncio.sleep(2)
+            self.animes = core.dataset()
+        else:
+            core.label_log(frame_log, 'Carregando dados do arquivo...').pack(anchor='nw', padx=5, pady=5)
+            await asyncio.sleep(2)
+            self.animes = pd.read_parquet(open('dados.parquet'))
         self.menu_principal()
 
     async def anime_exibir(self, anime_info, anime_poster, pesquisa=False):
@@ -378,20 +344,19 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
     def menu_principal(self):
         self.clear_frame()
         self.tela_base()
-        animes = self.animes
-        if animes:
+        if len(self.animes):
             n_animes_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
             n_animes_frame.pack(fill='x', pady=5)
-            n_animes = ctk.CTkLabel(n_animes_frame, text=f'{len(animes)} Animes', font=('Arial', 20, 'bold'))
+            n_animes = ctk.CTkLabel(n_animes_frame, text=f'{len(self.animes)} Animes', font=('Arial', 20, 'bold'))
             n_animes.pack(anchor='nw')
-            if len(animes) > 5:
+            if len(self.animes) > 5:
                 animes_frame = ctk.CTkScrollableFrame(self.main_frame, fg_color='transparent')
             else:
                 animes_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
             animes_frame.pack(fill='both', pady=5, expand=True)
             linha = ctk.CTkFrame(animes_frame, fg_color='transparent')
             linha.pack(pady=5, padx=5, fill='x', anchor='nw')
-            for i, anime in enumerate(animes):
+            for i, anime in enumerate(self.animes):
                 imagem = Image.open(io.BytesIO(anime.imagem))
                 comprimento = imagem.width//4
                 tamanho = (comprimento, imagem.height//4)
@@ -401,7 +366,7 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
                 poster.pack(pady=5, padx=5, anchor='nw', side='left')
                 poster.bind('<Button-1>', lambda event, a=anime,
                             i=imagem_poster: asyncio.create_task(self.anime_exibir(a, i)))
-                if i%4 == 0 and i != 0 and i != len(animes)-1:
+                if i%4 == 0 and i != 0 and i != len(self.animes)-1:
                     linha = ctk.CTkFrame(animes_frame, fg_color='transparent')
                     linha.pack(pady=5, padx=5, fill='x', anchor='nw')
             
@@ -419,6 +384,7 @@ if __name__ == '__main__':
     logger = logging.getLogger()
     logger.addHandler(CustomHandler())
     core.verificar_navegador()
+    core.verificar_ffmpeg()
     asyncio.run(core.verifica_cookies())
     app = AnimeDownloaderGUI()
     async_mainloop(app)

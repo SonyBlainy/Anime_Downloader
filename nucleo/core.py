@@ -6,11 +6,7 @@ import json
 from lxml.html import fromstring
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from infinite import infinete
-from ferramentas import baixando
-from sakura import Sakura
 from erai import erai_animes, torrent
-from bakashi import bakashi_anime
 from random import randint
 import logging
 import pickle
@@ -22,6 +18,7 @@ import asyncio
 import cv2
 from customtkinter import CTkLabel, CTkFrame
 from PIL import Image
+import pandas as pd
 
 path = os.getenv('caminho')
 save = os.getenv('save')
@@ -76,6 +73,8 @@ def divisor(lista, tamanho=5):
 async def pesquisar_tudo(nome:str):
     try:
         erai = await erai_animes.pesquisar(nome)
+        for anime in erai:
+            anime['info'] = await anime_info_pesquisa(anime['id'])
     except:
         logging.exception('Erro ao obter animes de erai')
         erai = None
@@ -87,38 +86,21 @@ async def pesquisar_tudo(nome:str):
             dados[chave] = [Anime(anime['nome'], anime['link'], anime['imagem']) for anime in dados[chave]]
     return dados
 
-async def anime_info_pesquisa(anime):
+async def anime_info_pesquisa(id):
     api = 'https://api.myanimelist.net/v2'
     client_id = 'a81a1ee7e886f2f0c54ec850594667a3'
-    header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'}
-    header_mal = {'X-MAL-CLIENT-ID': client_id}
+    header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+              'X-MAL-CLIENT-ID': client_id}
     infos = ['title', 'start_date', 'end_date', 'mean', 'status', 'genres', 'num_episodes',
              'start_season', 'broadcast', 'source', 'related_anime', 'related_manga', 'synopsis']
-    if 'erai-raws' in anime.link:
-        async with Client(headers=header, cookies=json.load(open('cookies.json'))) as client:
-            pagina = await client.get(anime.link)
-            pagina = fromstring(pagina.content)
-            anime_id = pagina.find_class('entry-content')[0].find_class('entry-content-buttons')[-2]
-            anime_id = anime_id.findall('a')[-1].get('href')
-            anime_id = re.findall(r'anime/(.*)', anime_id)[0]
-    async with Client(headers=header_mal, params={'fields': ','.join(infos)}) as client:
-        anime_info = await client.get(api+f'/anime/{anime_id}')
-        anime.info = anime_info.json()
-    return anime
+    async with Client(headers=header, params={'fields': ','.join(infos)}) as client:
+        anime_info = await client.get(api+f'/anime/{id}')
+    return anime_info.json()
     
 async def escolher_ep_erai(anime: Anime):
     eps = await erai_animes.extrair_ep(anime.link)
     eps_list = [Ep(f'Episódio {e}', eps[e]) for e in eps.keys()]
     return eps_list
-        
-def escolher_anime_sakura(nome=None, animes=None, baixar=False):
-    pass
-
-def escolher_anime_bakashi(nome=None, animes=None, baixar=False):
-    pass
-
-def escolher_animes_infinite(nome=None, animes=None, baixar=False):
-    pass
     
 def data_info(broadcast):
     dia = broadcast['day_of_the_week']
@@ -157,17 +139,6 @@ def anime_info(anime_caminho):
         caminho = arquivos[0]
     with open(os.path.join(anime_caminho, caminho), 'rb') as arquivo:
         return pickle.load(arquivo)
-
-def listar_anime():
-    result = []
-    with os.scandir(save) as i:
-        for a in i:
-            infos = anime_info(a.path)
-            if os.path.exists(infos.caminho):
-                result.append(infos)
-            else:
-                shutil.rmtree(a.path)
-    return result
 
 def listar_ep(anime: Anime):
     arquivos = []
@@ -270,20 +241,9 @@ def gerar_frames(anime: Anime, anime_path: str):
     with open(os.path.join(anime_path, 'frames.pkl'), 'wb') as arquivo:
         pickle.dump(lista_frames, arquivo)
 
-def carregar_frames(frame_path: str):
-    with open(os.path.join(frame_path, 'frames.pkl'), 'rb') as arquivo:
-        return pickle.load(arquivo)
-
 def label_log(frame: CTkFrame, texto: str):
     label = CTkLabel(frame, text=texto, font=('Arial', 15))
     return label
-
-def deletar_frames(anime_caminho):
-    anime_caminho = os.path.join(save, os.path.split(anime_caminho)[-1])
-    with os.scandir(anime_caminho) as i:
-        for arquivo in i:
-            if arquivo.name == 'frames.pkl':
-                os.remove(arquivo.path)
 
 async def obter_cookies():
     cookies = await navegador.cookies()
@@ -307,3 +267,32 @@ async def verifica_cookies():
         if 'wordpress_logged_in' in a:
             return
     await obter_cookies()
+
+def verificar_ffmpeg():
+    if not os.path.exists(r'.\ffmpeg'):
+        user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36'
+        link = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
+        subprocess.run(['powershell', '-NoProfile', '-Command', 'curl.exe', '-L', '--progress-bar',
+                        '-A', f'"{user_agent}"', '-o', 'ffmpeg.zip', f'"{link}"'])
+        with zipfile.ZipFile('ffmpeg.zip') as arquivo:
+            arquivo.extractall('.')
+        os.remove('ffmpeg.zip')
+        caminho = os.listdir('.')
+        caminho = [a for a in caminho if 'ffmpeg-' in a][0]
+        caminho = rf'.\{caminho}'
+        os.mkdir('ffmpeg')
+        for i in os.scandir(caminho+r'\bin'):
+            os.replace(i.path, r'.\ffmpeg\\'+i.name)
+        shutil.rmtree(caminho)
+
+def dataset() -> pd.DataFrame:
+    colunas = ['Anime', 'Caminho', 'Link', 'Caminho', 'Imagem', 'Nota', 'Status', 'Data', 'Generos',
+               'Season', 'Quanti_ep', 'Fonte', 'Eps']
+    data = pd.DataFrame(columns=colunas)
+    data = data.set_index('Anime')
+    for i in os.scandir(path):
+        shutil.rmtree(i.path)
+    return data
+
+def adicionar_anime(data: pd.DataFrame, anime: Anime) -> pd.DataFrame:
+    pass

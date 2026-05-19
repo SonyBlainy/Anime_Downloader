@@ -9,7 +9,7 @@ log.log
 output
 setup.py
 Anime Downloader.spec
-ffmpeg.exe
+ffmpeg
 build
 dist
 compilador.iss

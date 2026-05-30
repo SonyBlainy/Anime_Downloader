@@ -8,5 +8,6 @@ async def cookies():
         await pagina.goto('https://www.erai-raws.info/account-login/?redirect_to=https://www.erai-raws.info/')
         await pagina.wait_for_url('https://www.erai-raws.info', timeout=0)
         cookies = await context.cookies()
+        await context.close()
         await navegador.close()
         return cookies

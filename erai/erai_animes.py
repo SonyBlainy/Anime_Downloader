@@ -7,7 +7,6 @@ import os
 import logging
 import asyncio
 
-save = os.getenv('save')
 path = os.getenv('caminho')
 
 if not os.path.exists('cookies.json'):
@@ -16,12 +15,20 @@ if not os.path.exists('cookies.json'):
 
 header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'}
 
+class ErroCookie(Exception):
+    def __init__(self):
+        super().__init__('Erro ao utilizar cookie')
+
 def divisao_lista(lista, tamanho=5):
     for i in range(0, len(lista), tamanho):
         yield lista[i:i+tamanho]
 
+def ler_cookies():
+    with open('cookies.json') as arquivo:
+        return json.load(arquivo)
+
 async def pagina_anime(link):
-    cookie = json.load(open('cookies.json'))
+    cookie = ler_cookies()
     async with Client(headers=header, cookies=cookie) as client:
         try:
             anime = await client.get(link)
@@ -36,7 +43,7 @@ async def pagina_anime(link):
     return {'nome': nome, 'link': link, 'id': id}
 
 async def pesquisar(nome:str):
-    cookie = json.load(open('cookies.json'))
+    cookie = ler_cookies()
     async with Client(headers=header, cookies=cookie) as client:
         if len(nome.split()) > 1:
             nome = '+'.join(nome.split())
@@ -49,12 +56,13 @@ async def pesquisar(nome:str):
                 r = fromstring(reque.content)
         except:
             logging.error(f'Erro ao requisitar a pagina HTML', exc_info=True)
-    try:
-        animes = r.find_class('search-results-list')[0].find('./table').findall('./tr')
-    except:
-        animes = None
+    animes = r.find_class('search-results-list')
     if not animes:
-        return None
+        if not r.find_class('not-found'):
+            raise ErroCookie()
+        else:
+            return None
+    animes = animes[0].find('./table').findall('./tr')
     animes = [anime.find('.//a').get('href') for anime in animes]
     lista = []
     resultado = [pagina_anime(anime) for anime in animes]
@@ -64,7 +72,7 @@ async def pesquisar(nome:str):
     return lista
 
 async def extrair_ep(link: str):
-    cookie = json.load(open('cookies.json'))
+    cookie = ler_cookies()
     async with Client(headers=header, cookies=cookie) as client:
         pagina = await client.get(link)
         pagina = fromstring(pagina.content)

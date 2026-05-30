@@ -28,7 +28,7 @@ class Qbit():
         self.sessao = sessao
     
     async def baixar(self, ep):
-        await self.sessao.post(self.api_url+'torrents/add', data={'urls': ep.link, 'savepath': ep.caminho})
+        await self.sessao.post(self.api_url+'torrents/add', data={'urls': ep['link'], 'savepath': ep['caminho']})
 
     async def infos(self):
         return await self.sessao.get(self.api_url+'torrents/info').json()

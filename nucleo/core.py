@@ -3,10 +3,10 @@ import navegador
 import zipfile
 import re
 import json
-from lxml.html import fromstring
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from erai import erai_animes, torrent
+from erai.erai_animes import ErroCookie
 from random import randint
 import logging
 import pickle
@@ -15,76 +15,56 @@ import sys
 import subprocess
 import shutil
 import asyncio
-import cv2
 from customtkinter import CTkLabel, CTkFrame
 from PIL import Image
 import pandas as pd
+import pickle
 
 path = os.getenv('caminho')
-save = os.getenv('save')
-
-class Anime:
-    def __init__(self, nome, link, imagem, ep=None):
-        self.nome_pesquisa = None
-        self.nome = nome
-        self.nome_pesquisa = None
-        self.caminho = None
-        self.link = link
-        self.ep = ep
-        self.imagem = imagem
-        self.info = None
-        self.tratar_nome()
-
-    def tratar_nome(self):
-        lista_negra = [':', '°', '?', '-', ',', '“', '”', '.', '\\', '/']
-        limpo = ' '.join([''.join([letra for letra in palavra if letra not in lista_negra]) for palavra in self.nome.split()])
-        self.nome_pesquisa = self.nome
-        self.nome = limpo
-        logging.info(f'Nome do anime {limpo} tratado')
-
-    def verifica(self):
-        nome = '_'.join(self.nome.split())
-        anime_path = os.path.join(path, nome)
-        self.caminho = anime_path
-        save_path = os.path.join(save, nome)
-        for d in (anime_path, save_path):
-            os.makedirs(d, exist_ok=True)
-        save_file = os.path.join(save_path, 'save.pkl')
-        if not os.path.isfile(save_file):
-            try:
-                with open(save_file, 'wb') as arquivo:
-                    pickle.dump(self, arquivo)
-                logging.info(f'Arquivo save criado para o anime {nome}')
-            except OSError as e:
-                logging.error(f'Erro ao criar save para o anime {nome}: {e}')
-
-class Ep:
-    def __init__(self, nome, link, estensao=None, server=None):
-        self.nome = nome
-        self.link = link
-        self.estensao = estensao
-        self.server = server
-        self.caminho = None
 
 def divisor(lista, tamanho=5):
     for i in range(0, len(lista), tamanho):
         yield lista[i:i+tamanho]
 
-async def pesquisar_tudo(nome:str):
-    try:
-        erai = await erai_animes.pesquisar(nome)
-        for anime in erai:
-            anime['info'] = await anime_info_pesquisa(anime['id'])
-    except:
-        logging.exception('Erro ao obter animes de erai')
-        erai = None
-    sakura = None
-    q1n = None
-    dados = {'Erai': erai, 'Sakura': sakura, 'Q1n': q1n}
-    for chave in dados.keys():
-        if dados[chave]:
-            dados[chave] = [Anime(anime['nome'], anime['link'], anime['imagem']) for anime in dados[chave]]
-    return dados
+async def pesquisa_info(anime:dict) -> dict:
+    anime['info'] = await anime_info_pesquisa(anime['id'])
+    link = anime['info']['main_picture']['large']
+    async with Client() as client:
+        pagina = await client.get(link)
+        imagem = pagina.content
+    anime['imagem'] = imagem
+    lista_negra = [':', '°', '?', '-', ',', '“', '”', '.', '\\', '/']
+    limpo = ' '.join([''.join([letra for letra in palavra if letra not in lista_negra]) for palavra in anime['nome'].split()])
+    anime['nome_pesquisa'] = anime['nome']
+    anime['nome'] = limpo
+    logging.info(f'Nome do anime {limpo} tratado')
+    return anime
+
+def series(anime:dict) -> pd.Series:
+    anime = pd.Series(anime, name=anime['nome'])
+    anime = anime.drop('nome')
+    return anime
+
+async def pesquisar(nome:str):
+    while True:
+        try:
+            erai = await erai_animes.pesquisar(nome)
+            lista = [pesquisa_info(a) for a in erai]
+            resultado = []
+            for chunck in divisor(lista):
+                c = await asyncio.gather(*chunck)
+                resultado.extend(c)
+        except ErroCookie:
+            await obter_cookies()
+            continue
+        except:
+            logging.warning('Erro ao obter animes de erai', exc_info=True)
+            erai = None
+            break
+        else:
+            break
+    erai = [series(anime) for anime in erai]
+    return erai
 
 async def anime_info_pesquisa(id):
     api = 'https://api.myanimelist.net/v2'
@@ -96,12 +76,7 @@ async def anime_info_pesquisa(id):
     async with Client(headers=header, params={'fields': ','.join(infos)}) as client:
         anime_info = await client.get(api+f'/anime/{id}')
     return anime_info.json()
-    
-async def escolher_ep_erai(anime: Anime):
-    eps = await erai_animes.extrair_ep(anime.link)
-    eps_list = [Ep(f'Episódio {e}', eps[e]) for e in eps.keys()]
-    return eps_list
-    
+
 def data_info(broadcast):
     dia = broadcast['day_of_the_week']
     hora = broadcast['start_time']
@@ -120,27 +95,18 @@ def data_info(broadcast):
     data = dt_jst.astimezone(ZoneInfo('America/Sao_Paulo'))
     return {'dia': data.strftime('%A'), 'hora': data.strftime('%H:%M')}
 
-async def selecionar_ep(anime: Anime):
-    eps = {'erai-raws': escolher_ep_erai}
-    anime.ep = await eps[re.findall(r'\.(.*)\.', anime.link)[0]](anime)
+async def selecionar_ep(anime: pd.Series) -> pd.Series:
+    eps = await erai_animes.extrair_ep(anime['link'])
+    anime['ep'] = [{'ep': f'Episodio {ep}', 'link': eps[ep]} for ep in eps.keys()]
     return anime
 
-async def baixar_ep_erai(ep: Ep):
+async def baixar_ep_erai(ep):
     qbit = torrent.Qbit()
     await qbit.init_sessao()
     if qbit.sessao:
         await qbit.baixar(ep)
 
-def anime_info(anime_caminho):
-    arquivos = os.listdir(anime_caminho)
-    if len(arquivos) > 1:
-        caminho = arquivos[1]
-    else:
-        caminho = arquivos[0]
-    with open(os.path.join(anime_caminho, caminho), 'rb') as arquivo:
-        return pickle.load(arquivo)
-
-def listar_ep(anime: Anime):
+def listar_ep(anime):
     arquivos = []
     if anime.caminho:
         with os.scandir(anime.caminho) as i:
@@ -180,66 +146,10 @@ def fechar():
     pass
 
 async def torrent_info():
-    qbit = torrent.Qbit()
-    await qbit.init_sessao()
-    info = await qbit.infos()
-    animes = {}
-    for i in info:
-        try:
-            nome = i['name']
-            if re.findall(r'(\[Erai-raws\]) ', nome)[0]:
-                anime_nome = os.path.split(i['save_path'])[-1]
-                anime = pickle.load(open(os.path.join(save, os.path.split(i['save_path'])[-1], 'save.pkl'), 'rb'))
-                if anime_nome not in animes.keys():
-                    animes[anime_nome] = {'anime': anime, 'hashs': [i['hash']]}
-                else:
-                    animes[anime_nome]['hashs'].append(i['hash'])
-        except:
-            logging.exception('Erro ao obter downloads')
-    return animes
+    pass
 
-def gerar_frames(anime: Anime, anime_path: str):
-    eps = listar_ep(anime)
-    lista_frames = []
-    for ep in eps:
-        frames_ep = []
-        try:
-            video = cv2.VideoCapture(ep.path)
-            if not video.isOpened():
-                raise OSError('Arquivo não abre')
-            frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-            if frames < 100:
-                raise ValueError('Arquivo provavelmente corrompido')
-            n = randint(10, frames-1)
-            video.set(cv2.CAP_PROP_POS_FRAMES, n)
-            ok, frame = video.read()
-            if not ok:
-                raise ValueError('Erro ao ler o frame')
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame = Image.fromarray(frame)
-        except OSError:
-            logging.warning(f'Erro ao abrir o arquivo {ep.name}, pulando episódio')
-        except:
-            logging.warning(f'Erro no arquivo {ep.name}')
-        else:
-            tamanho = (int(frame.width/4), int(frame.height/4))
-            frame = frame.resize(tamanho)
-            frames_ep.append(frame)
-            for _ in range(4):
-                n = randint(10, frames-1)
-                video.set(cv2.CAP_PROP_POS_FRAMES, n)
-                ok, frame = video.read()
-                if ok:
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    frame = Image.fromarray(frame)
-                    frame = frame.resize(tamanho)
-                    frames_ep.append(frame)
-        finally:
-            if 'video' in locals():
-                video.release()
-        lista_frames.append(frames_ep)
-    with open(os.path.join(anime_path, 'frames.pkl'), 'wb') as arquivo:
-        pickle.dump(lista_frames, arquivo)
+def gerar_frames(anime, anime_path: str):
+    pass
 
 def label_log(frame: CTkFrame, texto: str):
     label = CTkLabel(frame, text=texto, font=('Arial', 15))
@@ -262,11 +172,15 @@ def verificar_navegador():
         os.remove('chrome.zip')
 
 async def verifica_cookies():
-    cookie = json.load(open('cookies.json'))
-    for a in cookie.keys():
-        if 'wordpress_logged_in' in a:
-            return
-    await obter_cookies()
+    if not os.path.exists('cookies.json'):
+        await obter_cookies()
+    else:
+        with open('cookies.json') as arquivo:
+            cookie = json.load(arquivo)
+        for a in cookie.keys():
+            if 'wordpress_logged_in' in a:
+                return
+        await obter_cookies()
 
 def verificar_ffmpeg():
     if not os.path.exists(r'.\ffmpeg'):
@@ -284,15 +198,24 @@ def verificar_ffmpeg():
         for i in os.scandir(caminho+r'\bin'):
             os.replace(i.path, r'.\ffmpeg\\'+i.name)
         shutil.rmtree(caminho)
+    os.environ['PATH'] = os.path.join(os.path.abspath('.'), 'ffmpeg')+os.pathsep+os.environ.get('PATH', '')
 
 def dataset() -> pd.DataFrame:
-    colunas = ['Anime', 'Caminho', 'Link', 'Caminho', 'Imagem', 'Nota', 'Status', 'Data', 'Generos',
-               'Season', 'Quanti_ep', 'Fonte', 'Eps']
+    colunas = ['nome_pesquisa', 'info', 'caminho', 'link', 'imagem', 'id', 'ep']
     data = pd.DataFrame(columns=colunas)
-    data = data.set_index('Anime')
-    for i in os.scandir(path):
-        shutil.rmtree(i.path)
+    data.index.name = 'Anime'
+    data.index = data.index.astype(str)
     return data
 
-def adicionar_anime(data: pd.DataFrame, anime: Anime) -> pd.DataFrame:
-    pass
+def adicionar_anime(data: pd.DataFrame, anime: pd.Series) -> pd.DataFrame:
+    data.loc[anime.name] = anime
+    with open('dados.parquet', 'wb') as arquivo:
+        data.to_parquet(arquivo)
+    return data
+
+def criar_pasta(anime: pd.Series) -> pd.Series:
+    caminho = '_'.join(anime.name.split())
+    caminho = os.path.join(path, caminho)
+    os.makedirs(caminho, exist_ok=True)
+    anime['caminho'] = caminho
+    return anime

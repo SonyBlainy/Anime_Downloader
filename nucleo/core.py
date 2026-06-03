@@ -9,7 +9,6 @@ from erai import erai_animes, torrent
 from erai.erai_animes import ErroCookie
 from random import randint
 import logging
-import pickle
 import os
 import sys
 import subprocess
@@ -215,7 +214,36 @@ def adicionar_anime(data: pd.DataFrame, anime: pd.Series) -> pd.DataFrame:
 
 def criar_pasta(anime: pd.Series) -> pd.Series:
     caminho = '_'.join(anime.name.split())
-    caminho = os.path.join(path, caminho)
+    caminho = os.path.join(path, caminho)+f'_{anime['id']}'
     os.makedirs(caminho, exist_ok=True)
     anime['caminho'] = caminho
     return anime
+
+async def verificar_animes(animes_data: pd.DataFrame, vazio=False):
+    async def info(id):
+        dados = await anime_info_pesquisa(id)
+        nome_limpo = ' '.join([''.join([letra for letra in palavra if letra not in ['.']]) for palavra in dados['title'].split()])
+        dados = await pesquisar(nome_limpo)
+        dados = await selecionar_ep(dados[0])
+        dados = criar_pasta(dados)
+        return dados
+    for d in os.scandir(path):
+        try:
+            id = int(d.name.split('_')[-1])
+        except:
+            shutil.rmtree(d.path)
+        else:
+            if id >= 3:
+                if not vazio:
+                    if not id in animes_data['id']:
+                        dados = await info(id)
+                else:
+                    dados = await info(id)
+                if 'dados' in locals():
+                    animes_data.loc[dados.name] = dados
+                    del dados
+            else:
+                shutil.rmtree(d.path)
+    with open('dados.parquet', 'wb') as arquivo:
+        animes_data.to_parquet(arquivo)
+    return animes_data

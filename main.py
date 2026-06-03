@@ -82,11 +82,15 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
             core.label_log(frame_log, 'Gerando arquivo...').pack(anchor='nw', padx=5, pady=5)
             await asyncio.sleep(2)
             self.animes = core.dataset()
+            if os.listdir(path):
+                self.animes = await core.verificar_animes(self.animes, True)
         else:
             core.label_log(frame_log, 'Carregando dados do arquivo...').pack(anchor='nw', padx=5, pady=5)
             await asyncio.sleep(2)
             with open('dados.parquet', 'rb') as arquivo:
                 self.animes = pd.read_parquet(arquivo)
+            if os.listdir(path):
+                self.animes = await core.verificar_animes(self.animes)
         self.menu_principal()
 
     async def anime_exibir(self, anime, anime_poster, pesquisa=False):

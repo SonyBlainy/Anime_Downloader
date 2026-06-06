@@ -40,7 +40,7 @@ async def pagina_anime(link):
         id = [a for a in id.findall('a') if a.xpath('text()')[0] == 'MAL'][0]
         id = id.get('href')
         id = re.search(r'anime/(\d*)', id).group(1)
-    return {'nome': nome, 'link': link, 'id': id}
+    return {'nome': nome, 'link': link, 'id': int(id)}
 
 async def pesquisar(nome:str):
     cookie = ler_cookies()

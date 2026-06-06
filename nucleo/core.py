@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from erai import erai_animes, torrent
 from erai.erai_animes import ErroCookie
-from random import randint
+from random import uniform
 import logging
 import os
 import sys
@@ -17,7 +17,8 @@ import asyncio
 from customtkinter import CTkLabel, CTkFrame
 from PIL import Image
 import pandas as pd
-import pickle
+import io
+from deep_translator import GoogleTranslator as GT
 
 path = os.getenv('caminho')
 
@@ -26,9 +27,13 @@ def divisor(lista, tamanho=5):
         yield lista[i:i+tamanho]
 
 async def pesquisa_info(anime:dict) -> dict:
-    anime['info'] = await anime_info_pesquisa(anime['id'])
+    tradutor = GT('en', 'pt')
+    try:
+        anime['info'] = await anime_info_pesquisa(anime['id'])
+    except:
+        return None
     link = anime['info']['main_picture']['large']
-    async with Client() as client:
+    async with Client(timeout=40) as client:
         pagina = await client.get(link)
         imagem = pagina.content
     anime['imagem'] = imagem
@@ -37,6 +42,15 @@ async def pesquisa_info(anime:dict) -> dict:
     anime['nome_pesquisa'] = anime['nome']
     anime['nome'] = limpo
     logging.info(f'Nome do anime {limpo} tratado')
+    anime['info']['synopsis'] = tradutor.translate('.'.join(anime['info']['synopsis'].split('.')[:-1]))
+    anime['info']['status'] = tradutor.translate(' '.join(anime['info']['status'].split('_')))
+    anime['info']['genres'] = [tradutor.translate(g['name']) for g in anime['info']['genres']]
+    try:
+        anime['info']['broadcast'] = data_info(anime['info']['broadcast'])
+    except:
+        anime['info']['broadcast'] = False
+    else:
+        anime['info']['broadcast']['dia'] = tradutor.translate(anime['info']['broadcast']['dia'])
     return anime
 
 def series(anime:dict) -> pd.Series:
@@ -52,7 +66,7 @@ async def pesquisar(nome:str):
             resultado = []
             for chunck in divisor(lista):
                 c = await asyncio.gather(*chunck)
-                resultado.extend(c)
+                resultado.extend([a for a in c if a])
         except ErroCookie:
             await obter_cookies()
             continue
@@ -62,7 +76,7 @@ async def pesquisar(nome:str):
             break
         else:
             break
-    erai = [series(anime) for anime in erai]
+    erai = [series(anime) for anime in resultado]
     return erai
 
 async def anime_info_pesquisa(id):
@@ -74,6 +88,8 @@ async def anime_info_pesquisa(id):
              'start_season', 'broadcast', 'source', 'related_anime', 'related_manga', 'synopsis']
     async with Client(headers=header, params={'fields': ','.join(infos)}) as client:
         anime_info = await client.get(api+f'/anime/{id}')
+        if anime_info.status_code != 200:
+            raise Exception('Erro ao obter informações, descartando anime')
     return anime_info.json()
 
 def data_info(broadcast):
@@ -105,19 +121,6 @@ async def baixar_ep_erai(ep):
     if qbit.sessao:
         await qbit.baixar(ep)
 
-def listar_ep(anime):
-    arquivos = []
-    if anime.caminho:
-        with os.scandir(anime.caminho) as i:
-            for a in i:
-                arquivos.append(a)
-        if arquivos:
-            return arquivos
-        else:
-            return None
-    else:
-        return None
-
 async def update(versao):
     link = 'https://api.github.com/repos/SonyBlainy/Anime_Downloader/releases/latest'
     async with Client() as client:
@@ -138,17 +141,32 @@ def abrir_pasta(caminho: str):
                    encoding='utf-8',
                    creationflags=subprocess.CREATE_NO_WINDOW)
     
-def deletar_anime(caminho: str):
-    shutil.rmtree(caminho)
-
-def fechar():
-    pass
+def deletar_anime(anime: pd.Series, dados: pd.DataFrame) -> pd.DataFrame:
+    shutil.rmtree(anime['caminho'])
+    dados = dados.drop(anime.name)
+    return dados
 
 async def torrent_info():
     pass
 
-def gerar_frames(anime, anime_path: str):
-    pass
+def gerar_frames(anime: pd.Series) -> dict:
+    eps = {}
+    for ep in os.scandir(anime['caminho']):
+        ep_n = re.search(r' - (\d{1,2}) ', ep.name).group(1)
+        duracao = subprocess.run(['ffprobe.exe', '-v', 'quiet', '-show_entries', 'format=duration',
+                                  '-of', 'csv=p=0', ep.path], capture_output=True,
+                                  creationflags=subprocess.CREATE_NO_WINDOW)
+        duracao = float(duracao.stdout.decode().strip())
+        tempo = uniform(0, duracao*0.95)
+        comando = subprocess.run(['ffmpeg.exe', '-ss', str(tempo), '-i', ep.path, '-vframes', '1',
+                                  '-q:v', '2', '-f', 'mjpeg', 'pipe:1'],
+                                  stderr=subprocess.PIPE,
+                                  stdout=subprocess.PIPE,
+                                  creationflags=subprocess.CREATE_NO_WINDOW)
+        if comando.returncode == 0:
+            imagem = Image.open(io.BytesIO(comando.stdout))
+            eps[str(ep_n)] = imagem
+    return eps
 
 def label_log(frame: CTkFrame, texto: str):
     label = CTkLabel(frame, text=texto, font=('Arial', 15))
@@ -212,10 +230,14 @@ def adicionar_anime(data: pd.DataFrame, anime: pd.Series) -> pd.DataFrame:
         data.to_parquet(arquivo)
     return data
 
-def criar_pasta(anime: pd.Series) -> pd.Series:
+def criar_pasta(anime: pd.Series, existe=False) -> pd.Series:
     caminho = '_'.join(anime.name.split())
-    caminho = os.path.join(path, caminho)+f'_{anime['id']}'
-    os.makedirs(caminho, exist_ok=True)
+    if not existe:
+        caminho = os.path.join(path, caminho)+f'-{anime['id']}'
+        os.makedirs(caminho, exist_ok=True)
+    else:
+        caminho = os.path.join(path, caminho)
+        os.rename(caminho, caminho+f'-{anime['id']}')
     anime['caminho'] = caminho
     return anime
 
@@ -229,21 +251,34 @@ async def verificar_animes(animes_data: pd.DataFrame, vazio=False):
         return dados
     for d in os.scandir(path):
         try:
-            id = int(d.name.split('_')[-1])
+            id = int(d.name.split('-')[-1])
         except:
-            shutil.rmtree(d.path)
-        else:
-            if id >= 3:
-                if not vazio:
-                    if not id in animes_data['id']:
-                        dados = await info(id)
-                else:
-                    dados = await info(id)
-                if 'dados' in locals():
-                    animes_data.loc[dados.name] = dados
-                    del dados
-            else:
+            nome = ' '.join(d.name.split('_'))
+            try:
+                dados = await pesquisar(nome)
+            except:
                 shutil.rmtree(d.path)
+                continue
+            else:
+                dados = await selecionar_ep(dados[0])
+                dados = criar_pasta(dados, True)
+                animes_data.loc[dados.name] = dados
+                del dados
+        else:
+            if not vazio:
+                if id not in animes_data['id'].values:
+                    dados = await info(id)
+                else:
+                    continue
+            else:
+                dados = await info(id)
+            if 'dados' in locals():
+                animes_data.loc[dados.name] = dados
+                del dados
+    animes_lista = [int(a.split('-')[-1]) for a in os.listdir(path)]
+    for id in animes_data['id'].to_list():
+        if id not in animes_lista:
+            animes_data = animes_data[animes_data['id'] != id]
     with open('dados.parquet', 'wb') as arquivo:
         animes_data.to_parquet(arquivo)
     return animes_data

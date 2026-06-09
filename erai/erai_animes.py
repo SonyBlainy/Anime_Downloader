@@ -2,7 +2,7 @@ from httpx import AsyncClient as Client
 from httpx import ReadTimeout
 import json
 import re
-from lxml.html import fromstring
+from bs4 import BeautifulSoup
 import os
 import logging
 import asyncio
@@ -34,12 +34,11 @@ async def pagina_anime(link):
             anime = await client.get(link)
         except ReadTimeout:
             return None
-        anime = fromstring(anime.content)
-        nome = anime.get_element_by_id('main').find('.//h1').xpath('text()')[0]
-        id = anime.find_class('entry-content')[0].find_class('entry-content-buttons')[-2]
-        id = [a for a in id.findall('a') if a.xpath('text()')[0] == 'MAL'][0]
+        anime = BeautifulSoup(anime.content, 'html.parser')
+        nome = anime.select_one('#main h1').text
+        id = anime.find('a', text=re.compile('MAL'))
         id = id.get('href')
-        id = re.search(r'anime/(\d*)', id).group(1)
+        id = re.search(r'/anime/(\d*)', id).group(1)
     return {'nome': nome, 'link': link, 'id': int(id)}
 
 async def pesquisar(nome:str):
@@ -53,17 +52,17 @@ async def pesquisar(nome:str):
             if reque.status_code != 200:
                 logging.error(f'Erro {reque.status_code} ao acessar a pagina do Erai')
             else:
-                r = fromstring(reque.content)
+                r = BeautifulSoup(reque.content, 'html.parser')
         except:
             logging.error(f'Erro ao requisitar a pagina HTML', exc_info=True)
-    animes = r.find_class('search-results-list')
+    animes = r.select_one('.search-results-list')
     if not animes:
-        if not r.find_class('not-found'):
+        if not r.select('.not-found'):
             raise ErroCookie()
         else:
             return None
-    animes = animes[0].find('./table').findall('./tr')
-    animes = [anime.find('.//a').get('href') for anime in animes]
+    animes = animes.select('table tr')
+    animes = [anime.find('a').get('href') for anime in animes]
     lista = []
     resultado = [pagina_anime(anime) for anime in animes]
     for chunk in divisao_lista(resultado):
@@ -75,27 +74,25 @@ async def extrair_ep(link: str):
     cookie = ler_cookies()
     async with Client(headers=header, cookies=cookie) as client:
         pagina = await client.get(link)
-        pagina = fromstring(pagina.content)
-        eps_lista = []
-        eps = pagina.find_class('tab-content')[0].findall('./div')
-        for menu in eps:
-            tabelas = menu.findall('./table')
-            eps_lista.extend(tabelas)
-        noar = {}
-        heavc = {}
-    for ep in reversed(eps_lista):
-        if ep.find('tr/th/a').get('data-title') != 'Subtitle':
-            nome = ep.find('tr/th/a[2]').xpath('text()')[0].strip().split('-')[-1]
-            colchetes = re.findall(r'\((.*?)\)', nome)
-            if colchetes:
-                if 'HEVC' in colchetes and 'Chinese Audio' not in colchetes:
-                    nome = ' '.join(nome.split()[:-1]).strip()
-                    link = ep.find('tr[4]/th/a[2]').get('href')
-                    heavc[nome] = link
-                    continue
-            else:
-                link = ep.find('tr[4]/th/a[2]').get('href')
-                noar[nome.strip()] = link
+        pagina = BeautifulSoup(pagina.content, 'html.parser')
+        eps = pagina.select('#menu0>table')
+        eps = [ep for ep in eps if ep.select_one('span[data-title="Portuguese(Brazil)"]')]
+    heavc = {}
+    noar = {}
+    for ep in reversed(eps):
+        if ep.select_one('a[data-title="Encodings"]'):
+            nome = ep.select_one('tr>th>a:nth-child(2)').text
+            nome = re.search(r' - (\w*) ', nome).group(1)
+            link = ep.select('tr')[-1]
+            link = link.find('a', text='magnet').get('href')
+            heavc[nome] = link
+        elif ep.select_one('a[data-title="Airing"]'):
+            nome = ep.select_one('tr>th>a:nth-child(2)').text
+            nome = re.search(r' - (\w*) ', nome).group(1)
+            link = ep.find('span', text=re.compile(r'1080p '))
+            link = link.parent
+            link = link.find('a', text='magnet').get('href')
+            noar[nome] = link
     filtro = heavc.copy()
     filtro.update({k: v for k, v in noar.items() if k not in heavc.keys()})
     return filtro

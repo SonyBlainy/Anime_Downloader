@@ -29,7 +29,11 @@ def divisor(lista, tamanho=5):
 async def pesquisa_info(anime:dict) -> dict:
     tradutor = GT('en', 'pt')
     try:
-        anime['info'] = await anime_info_pesquisa(anime['id'])
+        if 'id' in anime.keys():
+            anime['info'] = await anime_info_pesquisa(anime['id'], info_anime=True)
+        else:
+            anime['info'] = await anime_info_pesquisa(nome=anime['nome'], pesquisa=True)
+            anime['id'] = anime['info']['id']
     except:
         return None
     link = anime['info']['main_picture']['large']
@@ -58,7 +62,7 @@ def series(anime:dict) -> pd.Series:
     anime = anime.drop('nome')
     return anime
 
-async def pesquisar(nome:str):
+async def pesquisar(nome:str, reversa=False):
     while True:
         try:
             erai = await erai_animes.pesquisar(nome)
@@ -79,18 +83,30 @@ async def pesquisar(nome:str):
     erai = [series(anime) for anime in resultado]
     return erai
 
-async def anime_info_pesquisa(id):
+async def anime_info_pesquisa(id=None, nome=None, info_anime=False, pesquisa=False):
     api = 'https://api.myanimelist.net/v2'
     client_id = 'a81a1ee7e886f2f0c54ec850594667a3'
     header = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
               'X-MAL-CLIENT-ID': client_id}
     infos = ['title', 'start_date', 'end_date', 'mean', 'status', 'genres', 'num_episodes',
              'start_season', 'broadcast', 'source', 'related_anime', 'related_manga', 'synopsis']
-    async with Client(headers=header, params={'fields': ','.join(infos)}) as client:
-        anime_info = await client.get(api+f'/anime/{id}')
-        if anime_info.status_code != 200:
-            raise Exception('Erro ao obter informações, descartando anime')
-    return anime_info.json()
+    async def info_id(id):
+        async with Client(headers=header) as client:
+            anime_info = await client.get(api+f'/anime/{id}', params={'fields': ','.join(infos)})
+            if anime_info.status_code != 200:
+                raise Exception('Erro ao obter informações, descartando anime')
+        return anime_info.json()
+    async def pesquisa_id(nome: str):
+        async with Client(headers=header) as client:
+            anime = await client.get(api+'/anime', params={'q': nome})
+        return anime.json()
+    if info_anime:
+        anime = await info_id(id)
+    elif pesquisa:
+        anime = await pesquisa_id(nome)
+        anime = anime['data'][0]['node']['id']
+        anime = await info_id(anime)
+    return anime
 
 def data_info(broadcast):
     dia = broadcast['day_of_the_week']
@@ -218,7 +234,7 @@ def verificar_ffmpeg():
     os.environ['PATH'] = os.path.join(os.path.abspath('.'), 'ffmpeg')+os.pathsep+os.environ.get('PATH', '')
 
 def dataset() -> pd.DataFrame:
-    colunas = ['nome_pesquisa', 'info', 'caminho', 'link', 'imagem', 'id', 'ep']
+    colunas = ['nome_pesquisa', 'info', 'caminho', 'link', 'imagem', 'id', 'ep', 'server']
     data = pd.DataFrame(columns=colunas)
     data.index.name = 'Anime'
     data.index = data.index.astype(str)
@@ -243,10 +259,10 @@ def criar_pasta(anime: pd.Series, existe=False) -> pd.Series:
 
 async def verificar_animes(animes_data: pd.DataFrame, vazio=False):
     async def info(id):
-        dados = await anime_info_pesquisa(id)
+        dados = await anime_info_pesquisa(id, info_anime=True)
         nome_limpo = ' '.join([''.join([letra for letra in palavra if letra not in ['.']]) for palavra in dados['title'].split()])
-        dados = await pesquisar(nome_limpo)
-        dados = await selecionar_ep(dados[0])
+        dados = await pesquisar(nome_limpo, True)
+        dados = await selecionar_ep([a for a in dados if a['id'] == id][0])
         dados = criar_pasta(dados)
         return dados
     for d in os.scandir(path):
@@ -256,6 +272,8 @@ async def verificar_animes(animes_data: pd.DataFrame, vazio=False):
             nome = ' '.join(d.name.split('_'))
             try:
                 dados = await pesquisar(nome)
+                if not dados:
+                    raise ValueError('Nenhum anime encontrado, apagando pasta...')
             except:
                 shutil.rmtree(d.path)
                 continue
@@ -282,3 +300,6 @@ async def verificar_animes(animes_data: pd.DataFrame, vazio=False):
     with open('dados.parquet', 'wb') as arquivo:
         animes_data.to_parquet(arquivo)
     return animes_data
+
+def mover_arquivo(arquivo: str, destino: str):
+    shutil.move(arquivo, destino)

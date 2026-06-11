@@ -282,3 +282,6 @@ async def verificar_animes(animes_data: pd.DataFrame, vazio=False):
     with open('dados.parquet', 'wb') as arquivo:
         animes_data.to_parquet(arquivo)
     return animes_data
+
+def mover_arquivo(arquivo: str, destino: str):
+    shutil.move(arquivo, destino)

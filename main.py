@@ -17,13 +17,14 @@ from PIL import Image
 import io
 import re
 import pandas as pd
+from shutil import rmtree
 
 class CustomHandler(logging.Handler):
     def emit(self, record):
         if record.levelno >= logging.ERROR:
             os.startfile('log.log')
             sys.exit()
-versao = 'v1.2'
+versao = 'v1.2.1'
 from nucleo import core
 
 class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
@@ -89,6 +90,7 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
             with open('dados.parquet', 'rb') as arquivo:
                 self.animes = pd.read_parquet(arquivo)
             self.animes = await core.verificar_animes(self.animes)
+        self.animes.sort_index(inplace=True)
         self.menu_principal()
 
     async def anime_exibir(self, anime, anime_poster):
@@ -240,6 +242,16 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
     def listar_ep(self, anime: pd.Series):
         arquivos = os.listdir(anime['caminho'])
         if arquivos:
+            for d in os.scandir(anime['caminho']):
+                if os.path.isdir(d.path):
+                    caminho = os.path.split(d.path)[0]
+                    for a in os.scandir(d.path):
+                        core.mover_arquivo(a.path, caminho)
+                    rmtree(d.path)
+                    arquivos = os.listdir(anime['caminho'])
+                    break
+                else:
+                    break
             self.clear_frame()
             self.tela_base()
             n_eps_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
@@ -251,7 +263,10 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
             linha = ctk.CTkFrame(eps_frame, fg_color='transparent')
             linha.pack(pady=5, fill='x', anchor='nw')
             frames = core.gerar_frames(anime)
-            for ep in os.scandir(anime['caminho']):
+            for i, ep in enumerate(os.scandir(anime['caminho'])):
+                if i != 0 and i%3 == 0:
+                    linha = ctk.CTkFrame(eps_frame, fg_color='transparent')
+                    linha.pack(pady=5, fill='x', anchor='nw')
                 n_ep = str(re.search(r' - (\d{1,2})', ep.name).group(1))
                 try:
                     imagem = ctk.CTkImage(frames[n_ep], size=(384,216))
@@ -266,7 +281,7 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
         self.clear_frame()
         self.tela_base()
         animes = await core.pesquisar(nome)
-        animes_frame = ctk.CTkScrollableFrame(self.main_frame)
+        animes_frame = ctk.CTkScrollableFrame(self.main_frame, fg_color='transparent')
         animes_frame.pack(pady=5, fill='both', expand=True, side='left', anchor='nw')
         frame_nome = ctk.CTkFrame(animes_frame, fg_color='transparent')
         frame_nome.pack(fill='x', expand=True)
@@ -280,7 +295,7 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
             erai_frame.pack(pady=5, padx=5, anchor='nw', expand=True)
             for i, anime in enumerate(animes):
                 try:
-                    imagem_arquivo = Image.open(io.BytesIO(anime.imagem))
+                    imagem_arquivo = Image.open(io.BytesIO(anime['imagem']))
                 except:
                     logging.warning(f'Erro ao carregar imagem do anime {anime.name}', exc_info=True)
                     continue

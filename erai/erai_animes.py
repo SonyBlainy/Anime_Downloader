@@ -39,7 +39,7 @@ async def pagina_anime(link):
         id = anime.find('a', text=re.compile('MAL'))
         id = id.get('href')
         id = re.search(r'/anime/(\d*)', id).group(1)
-    return {'nome': nome, 'link': link, 'id': int(id)}
+    return {'nome': nome, 'link': link, 'id': int(id), 'server': 'Erai'}
 
 async def pesquisar(nome:str):
     cookie = ler_cookies()
@@ -75,18 +75,23 @@ async def extrair_ep(link: str):
     async with Client(headers=header, cookies=cookie) as client:
         pagina = await client.get(link)
         pagina = BeautifulSoup(pagina.content, 'html.parser')
-        eps = pagina.select('#menu0>table')
-        eps = [ep for ep in eps if ep.select_one('span[data-title="Portuguese(Brazil)"]')]
+        pagina = pagina.select_one('.tab-content')
+    no_ar_lista = pagina.select('#menu1>table')
+    no_ar_lista = [i for i in no_ar_lista if i.select_one('tr:nth-child(2)>th>span[data-title="Portuguese(Brazil)"]')]
+    heavc_lista = pagina.select('#menu5>table')
+    if heavc_lista:
+        heavc_lista = [i for i in heavc_lista if i.select_one('tr:nth-child(2)>th>span[data-title="Portuguese(Brazil)"]')]
+        no_ar_lista.extend(heavc_lista)
     heavc = {}
     noar = {}
-    for ep in reversed(eps):
+    for ep in reversed(no_ar_lista):
         if ep.select_one('a[data-title="Encodings"]'):
             nome = ep.select_one('tr>th>a:nth-child(2)').text
             nome = re.search(r' - (\w*) ', nome).group(1)
             link = ep.select('tr')[-1]
             link = link.find('a', text='magnet').get('href')
             heavc[nome] = link
-        elif ep.select_one('a[data-title="Airing"]'):
+        else:
             nome = ep.select_one('tr>th>a:nth-child(2)').text
             nome = re.search(r' - (\w*) ', nome).group(1)
             link = ep.find('span', text=re.compile(r'1080p '))

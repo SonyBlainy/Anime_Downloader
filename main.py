@@ -24,7 +24,7 @@ class CustomHandler(logging.Handler):
         if record.levelno >= logging.ERROR:
             os.startfile('log.log')
             sys.exit()
-versao = 'v1.2.1'
+versao = 'v1.2.2'
 from nucleo import core
 
 class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
@@ -38,33 +38,39 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
         self.after(10, lambda: self.state('zoomed'))
         self.after(0, lambda: asyncio.create_task(self.iniciar()))
 
-    def tela_base(self):
+    def tela_base(self, botao=True):
         botoes_frame = ctk.CTkFrame(self.main_frame, fg_color='transparent')
         icone_biblioteca = ctk.CTkImage(imagem_biblioteca, size=(24,24))
         icone_pesquisar = ctk.CTkImage(imagem_pesquisar, size=(24,24))
-        icone_download = ctk.CTkImage(imagem_download, size=(24,24))
         icone_update = ctk.CTkImage(imagem_update, size=(24,24))
         anime_texto = ctk.CTkLabel(self.main_frame, text='Anime Downloader', font=('Arial', 18, 'bold'))
         linha_h = ctk.CTkFrame(self.main_frame, height=4, corner_radius=2)
         linha_v = ctk.CTkFrame(self.main_frame, width=4, corner_radius=2)
-        pesquisa = ctk.CTkButton(botoes_frame, image=icone_pesquisar,
-                                  compound='left', fg_color='transparent', text='Pesquisar',
-                                  command=async_handler(self.pesquisar))
-        biblioteca = ctk.CTkButton(botoes_frame, image=icone_biblioteca,
-                                    compound='left', fg_color='transparent', text='Biblioteca',
-                                    command=self.menu_principal)
-        download = ctk.CTkButton(botoes_frame, image=icone_download,
-                                 compound='left', fg_color='transparent', text='Downloads',
-                                 command=None)
-        update = ctk.CTkButton(botoes_frame, image=icone_update,
-                               text='Update', fg_color='transparent', compound='left',
-                               command=async_handler(lambda: core.update(versao)))
+        if botao:
+            pesquisa = ctk.CTkButton(botoes_frame, image=icone_pesquisar,
+                                    compound='left', fg_color='transparent', text='Pesquisar',
+                                    command=async_handler(self.pesquisar))
+            biblioteca = ctk.CTkButton(botoes_frame, image=icone_biblioteca,
+                                        compound='left', fg_color='transparent', text='Biblioteca',
+                                        command=self.menu_principal)
+            update = ctk.CTkButton(botoes_frame, image=icone_update,
+                                text='Update', fg_color='transparent', compound='left',
+                                command=async_handler(lambda: core.update(versao)))
+        else:
+            pesquisa = ctk.CTkButton(botoes_frame, image=icone_pesquisar,
+                                    compound='left', fg_color='transparent', text='Pesquisar',
+                                    command=None)
+            biblioteca = ctk.CTkButton(botoes_frame, image=icone_biblioteca,
+                                        compound='left', fg_color='transparent', text='Biblioteca',
+                                        command=None)
+            update = ctk.CTkButton(botoes_frame, image=icone_update,
+                                text='Update', fg_color='transparent', compound='left',
+                                command=None)
         anime_texto.pack(pady=20, anchor='w')
         linha_h.pack(fill='x')
         botoes_frame.pack(side='left', anchor='nw')
         pesquisa.pack(pady=5, anchor='nw')
         biblioteca.pack(pady=5, anchor='nw')
-        download.pack(pady=5, anchor='nw')
         update.pack(pady=5, anchor='nw')
         linha_v.pack(fill='y', padx=5, side='left', anchor='nw')
 
@@ -132,6 +138,8 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
         n_eps = ctk.CTkLabel(info_anime, text=f'Números de Episódios: {anime['info']['num_episodes']}')
         if anime['info']['broadcast']:
             dia_lancamento = ctk.CTkLabel(info_anime, text=f'Hora de exibição: {anime['info']['broadcast']['dia']} as {anime['info']['broadcast']['hora']}')
+        else:
+            dia_lancamento = None
         season = ctk.CTkLabel(info_anime, text=f'Season: {estacoes[anime['info']['start_season']['season'].capitalize()]} de {anime['info']['start_season']['year']}')
         fonte = ctk.CTkLabel(info_anime, text=f'Fonte: {anime['info']['source'].capitalize()}')
         nota.pack(pady=2, padx=5, anchor='nw')
@@ -156,7 +164,7 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
         anime = await core.selecionar_ep(anime)
         if 'caminho' in anime.keys():
             with os.scandir(anime['caminho']) as i:
-                if anime['info']['num_episodes'] == len(os.listdir(anime['caminho'])):
+                if anime['info']['num_episodes'] == len(os.listdir(anime['caminho'])) and anime['info']['num_episodes'] != 0:
                     marcar_todos = True
                 try:
                     eps_baixados = [re.search(r'- (\w{2,4}) \[1080p', ep.name).group(1) for ep in i]
@@ -224,9 +232,16 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
         eps_baixar = [ep for ep in anime['ep'] if ep['ep'] in eps and ep['ep'].split()[1] not in baixados]
         for ep in eps_baixar:
             ep['caminho'] = anime['caminho']
-        eps_baixar = [core.baixar_ep_erai(ep) for ep in eps_baixar]
-        await asyncio.gather(*eps_baixar)
+        if anime['server'] == 'Erai':
+            eps_baixar = [core.baixar_ep_erai(ep) for ep in eps_baixar]
+            await asyncio.gather(*eps_baixar)
+        elif anime['server'] == 'TopAnimes':
+            self.clear_frame()
+            self.tela_base(False)
+            eps_baixar = [core.baixar_ep_top_animes(ep, self.main_frame) for ep in eps_baixar]
+            await asyncio.gather(*eps_baixar)
         self.animes = core.adicionar_anime(self.animes, anime)
+        self.animes.sort_index(inplace=True)
         self.menu_principal()
 
     async def baixar_tudo(self, anime: pd.Series, baixados):
@@ -237,6 +252,7 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
         eps = [core.baixar_ep_erai(ep) for ep in anime['ep'] if 'caminho' in ep.keys()]
         await asyncio.gather(*eps)
         self.animes = core.adicionar_anime(self.animes, anime)
+        self.animes.sort_index(inplace=True)
         self.menu_principal()
 
     def listar_ep(self, anime: pd.Series):
@@ -322,6 +338,7 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
         erai = [a for a in animes if a['server'] == 'Erai']
         topanimes = [a for a in animes if a['server'] == 'TopAnimes']
         animes_listar(erai)
+        animes_listar(topanimes)
 
     async def pesquisar(self):
         self.clear_frame()
@@ -382,7 +399,6 @@ if __name__ == '__main__':
                     format='%(asctime)s - %(levelname)s - %(message)s')
     imagem_pesquisar = Image.open('icones\\search.png')
     imagem_biblioteca = Image.open('icones\\home.png')
-    imagem_download = Image.open('icones\\download.png')
     imagem_update = Image.open('icones\\update.png')
     logger = logging.getLogger()
     logger.addHandler(CustomHandler())

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from erai import erai_animes, torrent
 from erai.erai_animes import ErroCookie
+from topanimes import top_animes
 from random import uniform
 import logging
 import os
@@ -15,6 +16,7 @@ import subprocess
 import shutil
 import asyncio
 from customtkinter import CTkLabel, CTkFrame
+import customtkinter as ctk
 from PIL import Image
 import pandas as pd
 import io
@@ -66,7 +68,14 @@ async def pesquisar(nome:str, reversa=False):
     while True:
         try:
             erai = await erai_animes.pesquisar(nome)
-            lista = [pesquisa_info(a) for a in erai]
+            if erai:
+                lista = [pesquisa_info(a) for a in erai]
+                if not reversa:
+                    topanimes = await top_animes.pesquisar(nome)
+                    lista.extend([pesquisa_info(a) for a in topanimes])
+            elif not reversa:
+                topanimes = await top_animes.pesquisar(nome)
+                lista = [pesquisa_info(a) for a in topanimes]
             resultado = []
             for chunck in divisor(lista):
                 c = await asyncio.gather(*chunck)
@@ -127,7 +136,10 @@ def data_info(broadcast):
     return {'dia': data.strftime('%A'), 'hora': data.strftime('%H:%M')}
 
 async def selecionar_ep(anime: pd.Series) -> pd.Series:
-    eps = await erai_animes.extrair_ep(anime['link'])
+    if anime['server'] == 'Erai':
+        eps = await erai_animes.extrair_ep(anime['link'])
+    elif anime['server'] == 'TopAnimes':
+        eps = await top_animes.episodios(anime['link'])
     anime['ep'] = [{'ep': f'Episodio {ep}', 'link': eps[ep]} for ep in eps.keys()]
     return anime
 
@@ -136,6 +148,19 @@ async def baixar_ep_erai(ep):
     await qbit.init_sessao()
     if qbit.sessao:
         await qbit.baixar(ep)
+
+async def baixar_ep_top_animes(ep, frame: CTkFrame):
+    frame_barra = CTkFrame(frame, fg_color='transparent')
+    frame_barra.pack(fill='both', expand=True)
+    label = CTkLabel(frame_barra, text=f'Baixando {ep['ep']}... 0%', font=('Arial', 15))
+    label.pack(side='left', padx=10)
+    barra = ctk.CTkProgressBar(frame_barra)
+    barra.pack(expand=True, fill='x', padx=10)
+    barra.set(0)
+    def callback(progresso: float, velocidade: float):
+        barra.set(progresso)
+        label.configure(text=f'Baixando {ep['ep']}... {progresso*100:.2f}%   {velocidade}')
+    await top_animes.baixar(ep, callback)
 
 async def update(versao):
     link = 'https://api.github.com/repos/SonyBlainy/Anime_Downloader/releases/latest'

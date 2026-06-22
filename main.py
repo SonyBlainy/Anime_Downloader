@@ -24,7 +24,7 @@ class CustomHandler(logging.Handler):
         if record.levelno >= logging.ERROR:
             os.startfile('log.log')
             sys.exit()
-versao = 'v1.2.3'
+versao = 'v1.2.4'
 from nucleo import core
 
 class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
@@ -240,6 +240,11 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
             self.tela_base(False)
             eps_baixar = [core.baixar_ep_top_animes(ep, self.main_frame) for ep in eps_baixar]
             await asyncio.gather(*eps_baixar)
+        elif anime['server'] == 'Infinite':
+            self.clear_frame()
+            self.tela_base(False)
+            eps_baixar = [core.baixar_ep_infinite(ep, self.main_frame) for ep in eps_baixar]
+            await asyncio.gather(*eps_baixar)
         self.animes = core.adicionar_anime(self.animes, anime)
         self.animes.sort_index(inplace=True)
         self.menu_principal()
@@ -256,6 +261,11 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
             self.clear_frame()
             self.tela_base(False)
             eps = [core.baixar_ep_top_animes(ep, self.main_frame) for ep in anime['ep'] if 'caminho' in ep.keys()]
+            await asyncio.gather(*eps)
+        elif anime['server'] == 'Infinite':
+            self.clear_frame()
+            self.tela_base(False)
+            eps = [core.baixar_ep_infinite(ep, self.main_frame) for ep in anime['ep'] if 'caminho' in ep.keys()]
             await asyncio.gather(*eps)
         self.animes = core.adicionar_anime(self.animes, anime)
         self.animes.sort_index(inplace=True)
@@ -343,8 +353,10 @@ class AnimeDownloaderGUI(ctk.CTk, AsyncCTk):
                                   lambda e, a=anime, i=imagem_poster: asyncio.create_task(self.anime_exibir(a, i)))
         erai = [a for a in animes if a['server'] == 'Erai']
         topanimes = [a for a in animes if a['server'] == 'TopAnimes']
+        infinite = [a for a in animes if a['server'] == 'Infinite']
         animes_listar(erai)
         animes_listar(topanimes)
+        animes_listar(infinite)
 
     async def pesquisar(self):
         self.clear_frame()

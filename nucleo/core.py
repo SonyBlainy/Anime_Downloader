@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from erai import erai_animes, torrent
 from erai.erai_animes import ErroCookie
 from topanimes import top_animes
+from infinite import infinite
 from random import uniform
 import logging
 import os
@@ -54,7 +55,7 @@ async def pesquisa_info(anime:dict) -> dict:
     try:
         anime['info']['broadcast'] = data_info(anime['info']['broadcast'])
     except:
-        anime['info']['broadcast'] = False
+        anime['info']['broadcast'] = {}
     else:
         anime['info']['broadcast']['dia'] = tradutor.translate(anime['info']['broadcast']['dia'])
     return anime
@@ -69,13 +70,20 @@ async def pesquisar(nome:str, reversa=False):
         try:
             erai = await erai_animes.pesquisar(nome)
             if erai:
-                lista = [pesquisa_info(a) for a in erai]
+                lista = []
                 if not reversa:
-                    topanimes = await top_animes.pesquisar(nome)
-                    lista.extend([pesquisa_info(a) for a in topanimes])
+                    animes = [top_animes.pesquisar(nome), infinite.pesquisar(nome)]
+                    animes = await asyncio.gather(*animes)
+                    for f in animes:
+                        lista.extend(f)
+                    lista = [pesquisa_info(a) for a in lista]
             elif not reversa:
-                topanimes = await top_animes.pesquisar(nome)
-                lista = [pesquisa_info(a) for a in topanimes]
+                animes = [top_animes.pesquisar(nome), infinite.pesquisar(nome)]
+                animes = await asyncio.gather(*animes)
+                lista = []
+                for f in animes:
+                    lista.extend(f)
+                lista = [pesquisa_info(a) for a in lista]
             resultado = []
             for chunck in divisor(lista):
                 c = await asyncio.gather(*chunck)
@@ -140,6 +148,8 @@ async def selecionar_ep(anime: pd.Series) -> pd.Series:
         eps = await erai_animes.extrair_ep(anime['link'])
     elif anime['server'] == 'TopAnimes':
         eps = await top_animes.episodios(anime['link'])
+    elif anime['server'] == 'Infinite':
+        eps = await infinite.episodios(anime['link'])
     anime['ep'] = [{'ep': f'Episodio {ep}', 'link': eps[ep]} for ep in eps.keys()]
     return anime
 
@@ -161,6 +171,19 @@ async def baixar_ep_top_animes(ep, frame: CTkFrame):
         barra.set(progresso)
         label.configure(text=f'Baixando {ep['ep']}... {progresso*100:.2f}%   {velocidade}')
     await top_animes.baixar(ep, callback)
+
+async def baixar_ep_infinite(ep, frame: CTkFrame):
+    frame_barra = CTkFrame(frame, fg_color='transparent')
+    frame_barra.pack(fill='both', expand=True)
+    label = CTkLabel(frame_barra, text=f'Baixando {ep['ep']}... 0%', font=('Arial', 15))
+    label.pack(side='left', padx=10)
+    barra = ctk.CTkProgressBar(frame_barra)
+    barra.pack(expand=True, fill='x', padx=10)
+    barra.set(0)
+    def callback(progresso: float, velocidade: float):
+        barra.set(progresso)
+        label.configure(text=f'Baixando {ep['ep']}... {progresso*100:.2f}%   {velocidade}')
+    await infinite.baixar(ep, callback)
 
 async def update(versao):
     link = 'https://api.github.com/repos/SonyBlainy/Anime_Downloader/releases/latest'

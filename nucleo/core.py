@@ -39,7 +39,7 @@ async def pesquisa_info(anime: dict) -> dict:
         else:
             anime["info"] = await anime_info_pesquisa(nome=anime["nome"], pesquisa=True)
             anime["id"] = anime["info"]["id"]
-    except:
+    except Exception:
         return None
     link = anime["info"]["main_picture"]["large"]
     async with Client(timeout=40) as client:
@@ -67,7 +67,7 @@ async def pesquisa_info(anime: dict) -> dict:
     ]
     try:
         anime["info"]["broadcast"] = data_info(anime["info"]["broadcast"])
-    except:
+    except Exception:
         anime["info"]["broadcast"] = {}
     else:
         anime["info"]["broadcast"]["dia"] = tradutor.translate(
@@ -94,6 +94,8 @@ async def pesquisar(nome: str, reversa=False):
                     for f in animes:
                         lista.extend(f)
                     lista = [pesquisa_info(a) for a in lista]
+                else:
+                    lista = [pesquisa_info(a) for a in erai]
             elif not reversa:
                 animes = [top_animes.pesquisar(nome), infinite.pesquisar(nome)]
                 animes = await asyncio.gather(*animes)
@@ -108,7 +110,7 @@ async def pesquisar(nome: str, reversa=False):
         except ErroCookie:
             await obter_cookies()
             continue
-        except:
+        except Exception:
             logging.warning("Erro ao obter animes de erai", exc_info=True)
             erai = None
             break
@@ -467,6 +469,7 @@ async def verificar_animes(animes_data: pd.DataFrame, vazio=False):
                 for palavra in dados["title"].split()
             ]
         )
+        print(dados, nome_limpo, sep="\n")
         dados = await pesquisar(nome_limpo, True)
         dados = await selecionar_ep([a for a in dados if a["id"] == id][0])
         dados = criar_pasta(dados)
@@ -475,13 +478,13 @@ async def verificar_animes(animes_data: pd.DataFrame, vazio=False):
     for d in os.scandir(path):
         try:
             id = int(d.name.split("-")[-1])
-        except:
+        except Exception:
             nome = " ".join(d.name.split("_"))
             try:
                 dados = await pesquisar(nome)
                 if not dados:
                     raise ValueError("Nenhum anime encontrado, apagando pasta...")
-            except:
+            except Exception:
                 shutil.rmtree(d.path)
                 continue
             else:

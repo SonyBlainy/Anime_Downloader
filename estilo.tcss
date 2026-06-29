@@ -1,0 +1,23 @@
+#painel_animes {
+    layout: grid;
+    grid-size: 5;
+    grid-gutter: 1 4;
+    overflow-y: auto;
+    padding: 1 2;
+  }
+  .poster {
+      width: auto;
+      height: auto;
+    }
+
+  .cartao-anime {
+      layout: vertical;
+      align: center middle;
+      height: auto;
+      width: 100%;
+    }
+
+  .nome_anime {
+      text-align: center;
+      width: 100%;
+    }

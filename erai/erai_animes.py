@@ -1,5 +1,5 @@
 from httpx import AsyncClient as Client
-from httpx import ReadTimeout
+from httpx import ConnectTimeout
 import json
 import re
 from bs4 import BeautifulSoup
@@ -33,19 +33,20 @@ def ler_cookies():
         return json.load(arquivo)
 
 
-async def pagina_anime(link):
-    cookie = ler_cookies()
-    async with Client(headers=header, cookies=cookie) as client:
-        try:
-            anime = await client.get(link)
-        except ReadTimeout:
-            return None
-        anime = BeautifulSoup(anime.content, "html.parser")
-        nome = anime.select_one("#main h1").text
-        id = anime.find("a", text=re.compile("MAL"))
-        id = id.get("href")
-        id = re.search(r"/anime/(\d*)", id).group(1)
-    return {"nome": nome, "link": link, "id": int(id), "server": "Erai"}
+async def pagina_anime(link: str, limitador: asyncio.Semaphore):
+    async with limitador:
+        cookie = ler_cookies()
+        async with Client(headers=header, cookies=cookie) as client:
+            try:
+                anime = await client.get(link)
+            except ConnectTimeout:
+                return None
+            anime = BeautifulSoup(anime.content, "html.parser")
+            nome = anime.select_one("#main h1").text
+            id = anime.find("a", text=re.compile("MAL"))
+            id = id.get("href")
+            id = re.search(r"/anime/(\d*)", id).group(1)
+        return {"nome": nome, "link": link, "id": int(id), "server": "Erai"}
 
 
 async def pesquisar(nome: str):
@@ -60,7 +61,7 @@ async def pesquisar(nome: str):
                 logging.error(f"Erro {reque.status_code} ao acessar a pagina do Erai")
             else:
                 r = BeautifulSoup(reque.content, "html.parser")
-        except:
+        except Exception:
             logging.error(f"Erro ao requisitar a pagina HTML", exc_info=True)
     animes = r.select_one(".search-results-list")
     if not animes:
@@ -70,12 +71,11 @@ async def pesquisar(nome: str):
             return None
     animes = animes.select("table tr")
     animes = [anime.find("a").get("href") for anime in animes]
-    lista = []
-    resultado = [pagina_anime(anime) for anime in animes]
-    for chunk in divisao_lista(resultado):
-        c = await asyncio.gather(*chunk)
-        lista.extend([a for a in c if a])
-    return lista
+    limitador = asyncio.Semaphore(5)
+    resultado = [pagina_anime(anime, limitador) for anime in animes]
+    resultado = await asyncio.gather(*resultado, return_exceptions=True)
+    resultado = [a for a in resultado if not isinstance(a, Exception)]
+    return resultado
 
 
 async def extrair_ep(link: str):

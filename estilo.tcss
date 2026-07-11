@@ -1,23 +1,54 @@
-#painel_animes {
+.painel_animes {
     layout: grid;
     grid-size: 5;
-    grid-gutter: 1 4;
     overflow-y: auto;
-    padding: 1 2;
+    grid-rows: auto;
+    grid-gutter: 2;
   }
-  .poster {
-      width: auto;
-      height: auto;
-    }
 
-  .cartao-anime {
-      layout: vertical;
-      align: center middle;
-      height: auto;
-      width: 100%;
+#anime_info_frame {
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 44 auto;
+    #nome_anime {
+        width: 100%;
     }
+    .poster {
+        width: 100%;
+    }
+}
+.poster {
+    width: auto;
+    height: auto;
+    box-sizing: content-box;
+    border: solid $background;
+    &.selecionado {
+        border: solid white;
+      }
+  }
+.n_animes_frame {
+    height: auto;
+    width: 100%;
+    column-span: 5;
+  }
+.n_animes {
+    text-align: right;
+    width: 100%;
+    height: auto;
+  }
+.cartao-anime {
+    align: center top;
+    height: auto;
+    width: 100%;
+  }
 
-  .nome_anime {
-      text-align: center;
-      width: 100%;
-    }
+.nome_anime {
+    text-align: center;
+    width: 100%;
+  }
+Screen {
+    align: center middle;
+  }
+#pesquisa {
+    width: 100%;
+  }

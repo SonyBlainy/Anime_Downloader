@@ -117,6 +117,7 @@ async def pesquisar(nome: str, reversa=False):
         else:
             break
     erai = [series(anime) for anime in resultado]
+    erai = pd.DataFrame(erai)
     return erai
 
 

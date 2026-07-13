@@ -28,7 +28,7 @@ from textual.widgets import Footer, Header, Label, RichLog, Static, Input
 from textual.containers import Vertical, Container, Horizontal
 from textual import work, on
 from textual.binding import Binding
-from textual.reactive import reactive
+from textual.screen import Screen
 from rich_pixels import Pixels
 
 
@@ -49,20 +49,186 @@ class AnimePoster(Static):
         self.anime_series = series
 
 
+class AnimeInfo(Screen):
+    BINDINGS = [("escape", "sair", "Voltar")]
+
+    def __init__(
+        self,
+        series: pd.Series,
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+    ) -> None:
+        super().__init__(name, id, classes)
+        self.anime_series = series
+
+    def compose(self) -> ComposeResult:
+        imagem_poster = Image.open(io.BytesIO(self.anime_series["imagem"]))
+        largura_caractere = 42
+        proporcao = largura_caractere / imagem_poster.width
+        nova_largura = largura_caractere
+        nova_altura = int(imagem_poster.height * proporcao)
+        imagem_poster = Pixels.from_image(
+            imagem_poster, resize=(nova_largura, nova_altura)
+        )
+        nome = self.anime_series.name
+        yield Header()
+        yield Footer()
+        with Container(id="anime_info_frame"):
+            yield Static(imagem_poster, classes="poster")
+            yield Label(nome.__str__(), id="nome_anime")
+
+    def action_sair(self):
+        self.app.pop_screen()
+
+
+class AnimePesquisa(Screen):
+    BINDINGS = [("escape", "cancelar", "Cancelar")]
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Footer()
+        yield Input(placeholder="Digite o nome do anime...", id="pesquisa")
+
+    def on_mount(self):
+        self.query_one(Input).focus()
+
+    @on(Input.Submitted)
+    def enviar(self, evento: Input.Submitted):
+        self.dismiss(evento.value)
+
+    def action_cancelar(self):
+        self.dismiss()
+
+
+class AnimeExibirPesquisa(Screen):
+    BINDINGS = [
+        Binding("right", "direita", show=False),
+        Binding("left", "esquerda", show=False),
+        Binding("up", "cima", show=False),
+        Binding("down", "baixo", show=False),
+        Binding("enter", "enter", show=False),
+        Binding("escape", "voltar", "Voltar"),
+    ]
+
+    def __init__(
+        self,
+        animes: pd.DataFrame,
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+    ) -> None:
+        super().__init__(name, id, classes)
+        self.animes = animes
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Footer()
+        with Horizontal(classes="n_animes_frame"):
+            yield Label(f"{len(self.animes)} animes encontrados", classes="n_animes")
+        with Container(classes="painel_animes"):
+            for n, (nome, anime) in enumerate(self.animes.iterrows()):
+                imagem_poster = Image.open(io.BytesIO(anime["imagem"]))
+                largura_caractere = 24
+                proporcao = largura_caractere / imagem_poster.width
+                nova_largura = largura_caractere
+                nova_altura = int(imagem_poster.height * proporcao)
+                imagem_poster = Pixels.from_image(
+                    imagem_poster, resize=(nova_largura, nova_altura)
+                )
+                with Vertical(classes="cartao-anime"):
+                    poster = AnimePoster(imagem_poster, anime, classes="poster")
+                    yield poster
+                    yield Label(nome.__str__(), classes="nome_anime")
+                    if n == 0:
+                        poster.add_class("selecionado")
+
+    def action_voltar(self):
+        self.app.pop_screen()
+
+    def action_direita(self):
+        posters = self.query(
+            ".poster",
+        )
+        for i, p in enumerate(posters):
+            if "selecionado" in p.classes:
+                poster_selecionado = p
+                n = i
+                if n + 1 < len(posters):
+                    poster_selecionado.remove_class("selecionado")
+                    posters[n + 1].add_class("selecionado")
+                    posters[n + 1].parent.scroll_visible()
+                break
+
+    def action_esquerda(self):
+        posters = self.query(
+            ".poster",
+        )
+        for i, p in enumerate(posters):
+            if "selecionado" in p.classes:
+                poster_selecionado = p
+                n = i
+                if n - 1 >= 0:
+                    poster_selecionado.remove_class("selecionado")
+                    posters[n - 1].add_class("selecionado")
+                    posters[n - 1].parent.scroll_visible()
+                break
+
+    def action_cima(self):
+        posters = self.query(
+            ".poster",
+        )
+        for i, p in enumerate(posters):
+            if "selecionado" in p.classes:
+                poster_selecionado = p
+                n = i
+                if n - 5 >= 0:
+                    poster_selecionado.remove_class("selecionado")
+                    posters[n - 5].add_class("selecionado")
+                    posters[n - 5].parent.scroll_visible()
+                break
+
+    def action_baixo(self):
+        posters = self.query(
+            ".poster",
+        )
+        for i, p in enumerate(posters):
+            if "selecionado" in p.classes:
+                poster_selecionado = p
+                n = i
+                if n + 5 < len(posters):
+                    poster_selecionado.remove_class("selecionado")
+                    posters[n + 5].add_class("selecionado")
+                    posters[n + 5].parent.scroll_visible()
+                break
+
+    def action_enter(self):
+        anime = self.query_one(".selecionado", AnimePoster)
+        self.app.push_screen(AnimeInfo(series=anime.anime_series))
+
+
 class AnimeDownloaderTUI(App):
     CSS_PATH = "estilo.tcss"
+    BINDINGS = [("q", "sair", "Sair")]
+    ENABLE_COMMAND_PALETTE = False
+
+    def on_mount(self):
+        self.title = "Anime Downloader " + versao
+        self.push_screen(MenuPrincipal())
+
+    def action_sair(self):
+        self.exit()
+
+
+class MenuPrincipal(Screen):
     BINDINGS = [
         ("p", "pesquisa", "Pesquisar"),
-        ("h", "home", "Home"),
-        ("q", "sair", "Sair"),
-        Binding("escape", "desfoco", show=False),
         Binding("right", "direita", show=False),
         Binding("left", "esquerda", show=False),
         Binding("up", "cima", show=False),
         Binding("down", "baixo", show=False),
         Binding("enter", "enter", show=False),
     ]
-    ENABLE_COMMAND_PALETTE = False
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -70,8 +236,6 @@ class AnimeDownloaderTUI(App):
         yield RichLog(id="frame_log")
 
     async def on_mount(self):
-        self.title = "Anime Downloader " + versao
-        self.theme = "tokyo-night"
         self.carregar_dados()
 
     def action_direita(self):
@@ -82,11 +246,11 @@ class AnimeDownloaderTUI(App):
             if "selecionado" in p.classes:
                 poster_selecionado = p
                 n = i
+                if n + 1 < len(posters):
+                    poster_selecionado.remove_class("selecionado")
+                    posters[n + 1].add_class("selecionado")
+                    posters[n + 1].parent.scroll_visible()
                 break
-        if n + 1 < len(posters):
-            poster_selecionado.remove_class("selecionado")
-            posters[n + 1].add_class("selecionado")
-            posters[n + 1].parent.scroll_visible()
 
     def action_esquerda(self):
         posters = self.query(
@@ -96,11 +260,11 @@ class AnimeDownloaderTUI(App):
             if "selecionado" in p.classes:
                 poster_selecionado = p
                 n = i
+                if n - 1 >= 0:
+                    poster_selecionado.remove_class("selecionado")
+                    posters[n - 1].add_class("selecionado")
+                    posters[n - 1].parent.scroll_visible()
                 break
-        if n - 1 >= 0:
-            poster_selecionado.remove_class("selecionado")
-            posters[n - 1].add_class("selecionado")
-            posters[n - 1].parent.scroll_visible()
 
     def action_cima(self):
         posters = self.query(
@@ -110,11 +274,11 @@ class AnimeDownloaderTUI(App):
             if "selecionado" in p.classes:
                 poster_selecionado = p
                 n = i
+                if n - 5 >= 0:
+                    poster_selecionado.remove_class("selecionado")
+                    posters[n - 5].add_class("selecionado")
+                    posters[n - 5].parent.scroll_visible()
                 break
-        if n - 5 >= 0:
-            poster_selecionado.remove_class("selecionado")
-            posters[n - 5].add_class("selecionado")
-            posters[n - 5].parent.scroll_visible()
 
     def action_baixo(self):
         posters = self.query(
@@ -124,69 +288,22 @@ class AnimeDownloaderTUI(App):
             if "selecionado" in p.classes:
                 poster_selecionado = p
                 n = i
+                if n + 5 < len(posters):
+                    poster_selecionado.remove_class("selecionado")
+                    posters[n + 5].add_class("selecionado")
+                    posters[n + 5].parent.scroll_visible()
                 break
-        if n + 5 < len(posters):
-            poster_selecionado.remove_class("selecionado")
-            posters[n + 5].add_class("selecionado")
-            posters[n + 5].parent.scroll_visible()
 
     def action_enter(self):
-        anime_frame = self.query_one(".painel_animes", Container)
-        anime_frame.display = False
         anime = self.query_one(".selecionado", AnimePoster)
-        self.query_one(".n_animes_frame").remove()
-        anime_frame.remove()
-        imagem_poster = Image.open(io.BytesIO(anime.anime_series["imagem"]))
-        largura_caractere = 42
-        proporcao = largura_caractere / imagem_poster.width
-        nova_largura = largura_caractere
-        nova_altura = int(imagem_poster.height * proporcao)
-        imagem_poster = Pixels.from_image(
-            imagem_poster, resize=(nova_largura, nova_altura)
-        )
-        imagem_poster = Static(imagem_poster, classes="poster")
-        nome = anime.anime_series.name
-        nome = Label(nome.__str__(), id="nome_anime")
-        anime_info_frame = Container(imagem_poster, nome, id="anime_info_frame")
-        self.mount(anime_info_frame)
+        self.app.push_screen(AnimeInfo(series=anime.anime_series))
 
-    def action_sair(self):
-        self.exit()
-
-    def action_desfoco(self):
-        self.set_focus(None)
-
-    def action_pesquisa(self):
-        try:
-            self.query_one(".n_animes_frame").remove()
-        except Exception:
-            pass
-        painel_animes = self.query_one(".painel_animes", Container)
-        painel_animes.display = False
-        try:
-            pesquisa_input = self.query_one("#pesquisa", Input)
-        except Exception:
-            pesquisa_input = Input(
-                placeholder="Digite o nome do anime...", id="pesquisa"
-            )
-            self.mount(pesquisa_input)
-            pesquisa_input.focus()
-            painel_animes.remove()
-
-    async def action_home(self):
-        try:
-            await self.query_one("#pesquisa", Input).remove()
-        except Exception:
-            pass
-        await self.exibir_animes()
-
-    @on(Input.Submitted, "#pesquisa")
-    async def pesquisar(self, evento: Input.Submitted):
-        pesquisa_input = self.query_one("#pesquisa", Input)
-        pesquisa_input.display = False
-        animes = await core.pesquisar(evento.value)
-        pesquisa_input.remove()
-        await self.exibir_animes(animes, True)
+    @work
+    async def action_pesquisa(self):
+        nome = await self.app.push_screen_wait(AnimePesquisa())
+        if nome:
+            animes = await core.pesquisar(nome)
+            self.app.push_screen(AnimeExibirPesquisa(animes))
 
     @work(exclusive=True)
     async def carregar_dados(self):
@@ -207,7 +324,7 @@ class AnimeDownloaderTUI(App):
         self.animes.sort_index(inplace=True)
         await self.exibir_animes()
 
-    async def exibir_animes(self, animes: None | pd.DataFrame = None, pesquisa=False):
+    async def exibir_animes(self, animes=pd.DataFrame(), pesquisa=False):
         if not pesquisa:
             try:
                 self.query_one("#frame_log", RichLog).remove()

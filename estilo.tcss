@@ -4,6 +4,24 @@
     overflow-y: auto;
     grid-rows: auto;
     grid-gutter: 2;
+    .cartao-anime {
+        align: center top;
+        height: auto;
+        width: 100%;
+        .poster {
+            width: auto;
+            height: auto;
+            box-sizing: content-box;
+            border: solid $background;
+            &.selecionado {
+                border: solid white;
+            }
+        }
+        .nome_anime {
+            text-align: center;
+            width: 100%;
+        }
+    }
   }
 
 #anime_info_frame {
@@ -17,38 +35,22 @@
         width: 100%;
     }
 }
-.poster {
-    width: auto;
-    height: auto;
-    box-sizing: content-box;
-    border: solid $background;
-    &.selecionado {
-        border: solid white;
-      }
-  }
+
 .n_animes_frame {
     height: auto;
     width: 100%;
     column-span: 5;
-  }
-.n_animes {
-    text-align: right;
-    width: 100%;
-    height: auto;
-  }
-.cartao-anime {
-    align: center top;
-    height: auto;
-    width: 100%;
-  }
+    .n_animes {
+        text-align: right;
+        width: 100%;
+        height: auto;
+    }
+}
 
-.nome_anime {
-    text-align: center;
-    width: 100%;
-  }
-Screen {
+
+AnimePesquisa {
     align: center middle;
-  }
-#pesquisa {
-    width: 100%;
+    #pesquisa {
+      width: 100%;
+    }
   }

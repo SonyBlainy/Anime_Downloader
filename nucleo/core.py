@@ -22,6 +22,7 @@ from PIL import Image
 import pandas as pd
 import io
 from deep_translator import GoogleTranslator as GT
+from collections.abc import Callable
 
 path = os.getenv("caminho")
 
@@ -31,49 +32,52 @@ def divisor(lista, tamanho=5):
         yield lista[i : i + tamanho]
 
 
-async def pesquisa_info(anime: dict) -> dict:
-    tradutor = GT("en", "pt")
-    try:
-        if "id" in anime.keys():
-            anime["info"] = await anime_info_pesquisa(anime["id"], info_anime=True)
-        else:
-            anime["info"] = await anime_info_pesquisa(nome=anime["nome"], pesquisa=True)
-            anime["id"] = anime["info"]["id"]
-    except Exception:
-        return None
-    link = anime["info"]["main_picture"]["large"]
-    async with Client(timeout=40) as client:
-        pagina = await client.get(link)
-        imagem = pagina.content
-    anime["imagem"] = imagem
-    lista_negra = [":", "°", "?", "-", ",", "“", "”", ".", "\\", "/"]
-    limpo = " ".join(
-        [
-            "".join([letra for letra in palavra if letra not in lista_negra])
-            for palavra in anime["nome"].split()
-        ]
-    )
-    anime["nome_pesquisa"] = anime["nome"]
-    anime["nome"] = limpo
-    logging.info(f"Nome do anime {limpo} tratado")
-    anime["info"]["synopsis"] = tradutor.translate(
-        ".".join(anime["info"]["synopsis"].split(".")[:-1])
-    )
-    anime["info"]["status"] = tradutor.translate(
-        " ".join(anime["info"]["status"].split("_"))
-    )
-    anime["info"]["genres"] = [
-        tradutor.translate(g["name"]) for g in anime["info"]["genres"]
-    ]
-    try:
-        anime["info"]["broadcast"] = data_info(anime["info"]["broadcast"])
-    except Exception:
-        anime["info"]["broadcast"] = {}
-    else:
-        anime["info"]["broadcast"]["dia"] = tradutor.translate(
-            anime["info"]["broadcast"]["dia"]
+async def pesquisa_info(anime: dict, limitador: asyncio.Semaphore) -> dict | None:
+    async with limitador:
+        tradutor = GT("en", "pt")
+        try:
+            if "id" in anime.keys():
+                anime["info"] = await anime_info_pesquisa(anime["id"], info_anime=True)
+            else:
+                anime["info"] = await anime_info_pesquisa(
+                    nome=anime["nome"], pesquisa=True
+                )
+                anime["id"] = anime["info"]["id"]
+        except Exception:
+            return None
+        link = anime["info"]["main_picture"]["large"]
+        async with Client(timeout=40) as client:
+            pagina = await client.get(link)
+            imagem = pagina.content
+        anime["imagem"] = imagem
+        lista_negra = [":", "°", "?", "-", ",", "“", "”", ".", "\\", "/"]
+        limpo = " ".join(
+            [
+                "".join([letra for letra in palavra if letra not in lista_negra])
+                for palavra in anime["nome"].split()
+            ]
         )
-    return anime
+        anime["nome_pesquisa"] = anime["nome"]
+        anime["nome"] = limpo
+        logging.info(f"Nome do anime {limpo} tratado")
+        anime["info"]["synopsis"] = tradutor.translate(
+            ".".join(anime["info"]["synopsis"].split(".")[:-1])
+        )
+        anime["info"]["status"] = tradutor.translate(
+            " ".join(anime["info"]["status"].split("_"))
+        )
+        anime["info"]["genres"] = [
+            tradutor.translate(g["name"]) for g in anime["info"]["genres"]
+        ]
+        try:
+            anime["info"]["broadcast"] = data_info(anime["info"]["broadcast"])
+        except Exception:
+            anime["info"]["broadcast"] = {}
+        else:
+            anime["info"]["broadcast"]["dia"] = tradutor.translate(
+                anime["info"]["broadcast"]["dia"]
+            )
+        return anime
 
 
 def series(anime: dict) -> pd.Series:
@@ -82,43 +86,51 @@ def series(anime: dict) -> pd.Series:
     return anime
 
 
-async def pesquisar(nome: str, reversa=False):
-    while True:
-        try:
-            erai = await erai_animes.pesquisar(nome)
-            if erai:
-                lista = erai.copy()
-                if not reversa:
-                    animes = [top_animes.pesquisar(nome), infinite.pesquisar(nome)]
-                    animes = await asyncio.gather(*animes)
-                    for f in animes:
-                        lista.extend(f)
-                    lista = [pesquisa_info(a) for a in lista]
-                else:
-                    lista = [pesquisa_info(a) for a in erai]
-            elif not reversa:
-                animes = [top_animes.pesquisar(nome), infinite.pesquisar(nome)]
-                animes = await asyncio.gather(*animes)
-                lista = []
-                for f in animes:
-                    lista.extend(f)
-                lista = [pesquisa_info(a) for a in lista]
-            resultado = []
-            for chunck in divisor(lista):
-                c = await asyncio.gather(*chunck)
-                resultado.extend([a for a in c if a])
-        except ErroCookie:
-            await obter_cookies()
-            continue
-        except Exception:
-            logging.warning("Erro ao obter animes de erai", exc_info=True)
-            erai = None
-            break
+async def pesquisar(nome: str, func_log: Callable[[str], None], reversa=False):
+    animes = []
+    if not reversa:
+        func_log("Pesquisando animes no Erai...")
+        while True:
+            try:
+                erai = await erai_animes.pesquisar(nome)
+            except ErroCookie:
+                await obter_cookies()
+                continue
+            except Exception:
+                func_log("Erro ao pesquisar animes no Erai")
+                erai = None
+                break
+            else:
+                break
+        if erai:
+            func_log(f"{len(erai)} animes encontrados no Erai")
+            animes.extend(erai)
         else:
-            break
-    erai = [series(anime) for anime in resultado]
-    erai = pd.DataFrame(erai)
-    return erai
+            func_log("Nenhum anime encontrado no Erai")
+        func_log("Pesquisando animes no TopAnimes...")
+        top = await top_animes.pesquisar(nome)
+        if top:
+            func_log(f"{len(top)} animes encontrados no TopAnimes")
+            animes.extend(top)
+        else:
+            func_log("Nenhum anime encontrado no TopAnimes")
+        func_log("Pesquisando animes no Infinite...")
+        infi = await infinite.pesquisar(nome)
+        if infi:
+            func_log(f"{len(infi)} encontrados no Infinite")
+            animes.extend(infi)
+        else:
+            func_log("Nenhum anime encontrado no Infinite")
+        limitador = asyncio.Semaphore(5)
+        animes = [pesquisa_info(a, limitador) for a in animes]
+        func_log(f"Pesquisando informações sobre {len(animes)} animes...")
+        animes = await asyncio.gather(*animes)
+        animes = [a for a in animes if a]
+    else:
+        pass
+    animes = [series(anime) for anime in animes]
+    animes = pd.DataFrame(animes)
+    return animes
 
 
 async def anime_info_pesquisa(id=None, nome=None, info_anime=False, pesquisa=False):
@@ -286,10 +298,6 @@ def deletar_anime(anime: pd.Series, dados: pd.DataFrame) -> pd.DataFrame:
     shutil.rmtree(anime["caminho"])
     dados = dados.drop(anime.name)
     return dados
-
-
-async def torrent_info():
-    pass
 
 
 def gerar_frames(anime: pd.Series) -> dict:

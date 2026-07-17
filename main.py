@@ -50,7 +50,7 @@ class AnimePoster(Static):
 
 
 class AnimeInfo(Screen):
-    BINDINGS = [("escape", "sair", "Voltar")]
+    BINDINGS = [("escape", "sair", "Voltar"), ("d", "download", "Download")]
 
     def __init__(
         self,
@@ -64,7 +64,7 @@ class AnimeInfo(Screen):
 
     def compose(self) -> ComposeResult:
         imagem_poster = Image.open(io.BytesIO(self.anime_series["imagem"]))
-        largura_caractere = 42
+        largura_caractere = 45
         proporcao = largura_caractere / imagem_poster.width
         nova_largura = largura_caractere
         nova_altura = int(imagem_poster.height * proporcao)
@@ -72,11 +72,30 @@ class AnimeInfo(Screen):
             imagem_poster, resize=(nova_largura, nova_altura)
         )
         nome = self.anime_series.name
+        infos = self.anime_series["info"]
         yield Header()
         yield Footer()
         with Container(id="anime_info_frame"):
             yield Static(imagem_poster, classes="poster")
-            yield Label(nome.__str__(), id="nome_anime")
+            with Container(id="infos_anime"):
+                with Container(id="anime_nome_frame"):
+                    yield Label(nome.__str__().strip(), id="nome_anime")
+                with Container(id="infos_frame"):
+                    yield Label(f"Nota: {infos['mean']}", id="anime_nota")
+                    yield Label(f"Episódios: {infos['num_episodes']}", id="n_eps")
+                    yield Label(f"Status: {infos['status']}", id="status")
+                    yield Label(f"Fonte: {infos['source']}", id="fonte")
+                    yield Label(
+                        f"Season: {infos['start_season']['season'].upper()}",
+                        id="season",
+                    )
+                    yield Label(
+                        f"Lançamento: {infos['broadcast']['dia']} as {infos['broadcast']['hora']}",
+                        id="lancamento",
+                    )
+                yield Label("Genêros: " + ", ".join(infos["genres"]), id="generos")
+                with Container(id="sinopse_frame"):
+                    yield Label(f"Sinopse:\n{infos['synopsis']}", id="sinopse")
 
     def action_sair(self):
         self.app.pop_screen()
@@ -207,6 +226,36 @@ class AnimeExibirPesquisa(Screen):
         self.app.push_screen(AnimeInfo(series=anime.anime_series))
 
 
+class LogPesquisa(Screen):
+    def __init__(
+        self,
+        nome: str,
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+    ) -> None:
+        super().__init__(name, id, classes)
+        self.nome_anime = nome
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Footer()
+        yield RichLog(id="frame_log")
+
+    def on_mount(self):
+        self.busca()
+
+    @work
+    async def busca(self):
+        log_widget = self.query_one("#frame_log", RichLog)
+
+        def salvar_log(texto: str):
+            log_widget.write(texto)
+
+        animes = await core.pesquisar(self.nome_anime, salvar_log)
+        self.dismiss(animes)
+
+
 class AnimeDownloaderTUI(App):
     CSS_PATH = "estilo.tcss"
     BINDINGS = [("q", "sair", "Sair")]
@@ -302,7 +351,7 @@ class MenuPrincipal(Screen):
     async def action_pesquisa(self):
         nome = await self.app.push_screen_wait(AnimePesquisa())
         if nome:
-            animes = await core.pesquisar(nome)
+            animes = await self.app.push_screen_wait(LogPesquisa(nome))
             self.app.push_screen(AnimeExibirPesquisa(animes))
 
     @work(exclusive=True)

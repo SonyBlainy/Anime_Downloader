@@ -57,6 +57,25 @@
         }
     }
 }
+AnimeDownload {
+    layout: grid;
+    grid-size: 6;
+    grid-columns: 1fr;
+    grid-rows: auto;
+    grid-gutter: 2 5;
+    .anime_nome {
+        width: 100%;
+        height: auto;
+        content-align: center middle;
+        border: solid white;
+        &.baixado {
+            border: solid blue;
+        }
+        &.selecionado {
+            border: solid green;
+        }
+    }
+}
 .n_animes_frame {
     height: auto;
     width: 100%;

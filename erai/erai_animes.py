@@ -51,7 +51,7 @@ async def pagina_anime(link: str, limitador: asyncio.Semaphore):
 
 async def pesquisar(nome: str):
     cookie = ler_cookies()
-    async with Client(headers=header, cookies=cookie) as client:
+    async with Client(headers=header, cookies=cookie, timeout=50) as client:
         if len(nome.split()) > 1:
             nome = "+".join(nome.split())
         api = "https://www.erai-raws.info/?s=" + nome
@@ -62,7 +62,7 @@ async def pesquisar(nome: str):
             else:
                 r = BeautifulSoup(reque.content, "html.parser")
         except Exception:
-            logging.error(f"Erro ao requisitar a pagina HTML", exc_info=True)
+            logging.error("Erro ao requisitar a pagina HTML", exc_info=True)
     animes = r.select_one(".search-results-list")
     if not animes:
         if not r.select(".not-found"):

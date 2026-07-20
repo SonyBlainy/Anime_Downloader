@@ -50,7 +50,13 @@ class AnimePoster(Static):
 
 
 class AnimeInfo(Screen):
-    BINDINGS = [("escape", "sair", "Voltar"), ("d", "download", "Download")]
+    BINDINGS = [
+        ("escape", "sair", "Voltar"),
+        ("d", "download", "Download"),
+        ("r", "deletar", "Excluir anime"),
+        ("a", "abrir", "Abrir pasta do anime"),
+        ("l", "listar", "Listar Episodios"),
+    ]
 
     def __init__(
         self,
@@ -84,9 +90,9 @@ class AnimeInfo(Screen):
                     yield Label(f"Nota: {infos['mean']}", id="anime_nota")
                     yield Label(f"Episódios: {infos['num_episodes']}", id="n_eps")
                     yield Label(f"Status: {infos['status']}", id="status")
-                    yield Label(f"Fonte: {infos['source']}", id="fonte")
+                    yield Label(f"Fonte: {infos['source'].capitalize()}", id="fonte")
                     yield Label(
-                        f"Season: {infos['start_season']['season'].upper()}",
+                        f"Season: {infos['start_season']['season'].capitalize()}",
                         id="season",
                     )
                     yield Label(
@@ -97,8 +103,167 @@ class AnimeInfo(Screen):
                 with Container(id="sinopse_frame"):
                     yield Label(f"Sinopse:\n{infos['synopsis']}", id="sinopse")
 
+    @work
+    async def action_download(self):
+        anime = await core.selecionar_ep(self.anime_series)
+        try:
+            eps_baixados = os.listdir(anime["caminho"])
+        except Exception:
+            eps_baixados = []
+        else:
+            eps_baixados = [
+                re.search(r"- (\w*) \[1080p.*$", ep).group(1) for ep in eps_baixados
+            ]
+        self.app.push_screen(AnimeDownload(anime, eps_baixados))
+
+    def action_deletar(self):
+        dados = self.app.screen_stack[1].animes
+        core.deletar_anime(self.anime_series, dados)
+        self.app.push_screen(MenuPrincipal())
+
     def action_sair(self):
         self.app.pop_screen()
+
+
+class AnimeDownload(Screen):
+    BINDINGS = [
+        Binding("escape", "voltar", show=False),
+        Binding("enter", "baixar", "Baixar"),
+        Binding("up", "cima", show=False),
+        Binding("down", "baixo", show=False),
+        Binding("left", "esquerda", show=False),
+        Binding("right", "direita", show=False),
+    ]
+
+    def __init__(
+        self,
+        anime: pd.Series,
+        eps_baixados: list[str],
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+    ) -> None:
+        super().__init__(name, id, classes)
+        self.anime = anime
+        self.eps_baixados = eps_baixados
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Footer()
+        selecionado = False
+        for ep in self.anime["ep"].copy():
+            ep_nome = re.search(r"Episodio (.*)$", ep["ep"]).group(1)
+            nome = Label(ep["ep"], classes="anime_nome")
+            yield nome
+            if ep_nome in self.eps_baixados:
+                nome.add_class("baixado")
+            if not selecionado:
+                if not nome.has_class("baixado"):
+                    nome.add_class("selecionado")
+                    selecionado = True
+
+    def action_direita(self):
+        eps = self.query(".anime_nome")
+        for n, ep in enumerate(eps.__iter__()):
+            if ep.has_class("selecionado"):
+                if n + 1 < eps.__len__():
+                    if not eps[n + 1].has_class("baixado"):
+                        ep.remove_class("selecionado")
+                        eps[n + 1].add_class("selecionado")
+                    else:
+                        for ep2 in eps[n + 1 :]:
+                            if not ep2.has_class("baixado"):
+                                ep.remove_class("selecionado")
+                                ep2.add_class("selecionado")
+                                break
+                break
+
+    def action_esquerda(self):
+        eps = self.query(".anime_nome")
+        for n, ep in enumerate(eps.__iter__()):
+            if ep.has_class("selecionado"):
+                if n - 1 >= 0:
+                    if not eps[n - 1].has_class("baixado"):
+                        ep.remove_class("selecionado")
+                        eps[n - 1].add_class("selecionado")
+                    else:
+                        for ep2 in eps[n - 1 :: -1]:
+                            if not ep2.has_class("baixado"):
+                                ep.remove_class("selecionado")
+                                ep2.add_class("selecionado")
+                                break
+                break
+
+    def action_cima(self):
+        eps = self.query(".anime_nome")
+        for n, ep in enumerate(eps.__iter__()):
+            if ep.has_class("selecionado"):
+                if n - 6 >= 0:
+                    if not eps[n - 6].has_class("baixado"):
+                        ep.remove_class("selecionado")
+                        eps[n - 6].add_class("selecionado")
+                    else:
+                        for ep2 in eps[n - 6 :: -1]:
+                            if not ep2.has_class("baixado"):
+                                ep.remove_class("selecionado")
+                                ep2.add_class("selecionado")
+                                break
+                else:
+                    if not eps[0].has_class("baixado"):
+                        ep.remove_class("selecionado")
+                        eps[0].add_class("selecionado")
+                    else:
+                        for ep2 in eps[1:]:
+                            if not ep2.has_class("baixado"):
+                                ep.remove_class("selecionado")
+                                ep2.add_class("selecionado")
+                                break
+                break
+
+    def action_baixo(self):
+        eps = self.query(".anime_nome")
+        for n, ep in enumerate(eps.__iter__()):
+            if ep.has_class("selecionado"):
+                if n + 6 < eps.__len__():
+                    if not eps[n + 6].has_class("baixado"):
+                        ep.remove_class("selecionado")
+                        eps[n + 6].add_class("selecionado")
+                    else:
+                        for ep2 in eps[n + 6 :]:
+                            if not ep2.has_class("baixado"):
+                                ep.remove_class("selecionado")
+                                ep2.add_class("selecionado")
+                                break
+                else:
+                    if not eps[-1].has_class("baixado"):
+                        ep.remove_class("selecionado")
+                        eps[-1].add_class("selecionado")
+                    else:
+                        for ep2 in eps[-2::-1]:
+                            if not ep2.has_class("baixado"):
+                                ep.remove_class("selecionado")
+                                ep2.add_class("selecionado")
+                                break
+                break
+
+    async def action_baixar(self):
+        ep_s = self.query_one(".selecionado", Label)
+        self.anime = core.criar_pasta(self.anime)
+        if self.anime["server"] == "Erai":
+            for ep in self.anime["ep"]:
+                if ep["ep"] == ep_s.content:
+                    ep["caminho"] = self.anime["caminho"]
+                    await core.baixar_ep_erai(ep)
+                    break
+        menu = self.app.screen_stack[1]
+        dados = menu.animes
+        core.adicionar_anime(dados, self.anime)
+        while len(self.app.screen_stack) > 1:
+            self.app.pop_screen()
+        self.app.push_screen(MenuPrincipal())
+
+    def action_voltar(self):
+        self.dismiss()
 
 
 class AnimePesquisa(Screen):
@@ -205,6 +370,10 @@ class AnimeExibirPesquisa(Screen):
                     poster_selecionado.remove_class("selecionado")
                     posters[n - 5].add_class("selecionado")
                     posters[n - 5].parent.scroll_visible()
+                else:
+                    poster_selecionado.remove_class("selecionado")
+                    posters[0].add_class("selecionado")
+                    posters[0].parent.scroll_visible()
                 break
 
     def action_baixo(self):
@@ -219,6 +388,10 @@ class AnimeExibirPesquisa(Screen):
                     poster_selecionado.remove_class("selecionado")
                     posters[n + 5].add_class("selecionado")
                     posters[n + 5].parent.scroll_visible()
+                else:
+                    poster_selecionado.remove_class("selecionado")
+                    posters[len(posters) - 1].add_class("selecionado")
+                    posters[len(posters) - 1].parent.scroll_visible()
                 break
 
     def action_enter(self):
@@ -282,9 +455,8 @@ class MenuPrincipal(Screen):
     def compose(self) -> ComposeResult:
         yield Header()
         yield Footer()
-        yield RichLog(id="frame_log")
 
-    async def on_mount(self):
+    def on_mount(self):
         self.carregar_dados()
 
     def action_direita(self):
@@ -354,50 +526,23 @@ class MenuPrincipal(Screen):
             animes = await self.app.push_screen_wait(LogPesquisa(nome))
             self.app.push_screen(AnimeExibirPesquisa(animes))
 
-    @work(exclusive=True)
-    async def carregar_dados(self):
-        painel_logs = self.query_one("#frame_log", RichLog)
-
-        def registrar(texto: str):
-            painel_logs.write(texto)
-
-        registrar("Procurando arquivo...")
+    def carregar_dados(self):
         if os.path.exists("dados.parquet"):
-            registrar("Arquivo encontrado")
-            registrar("Carregando dados do arquivo...")
             with open("dados.parquet", "rb") as arquivo:
                 self.animes = pd.read_parquet(arquivo)
-            registrar("Arquivo carregado")
         else:
-            pass
+            self.animes = pd.DataFrame()
+        self.animes = core.verificar_animes(self.animes)
         self.animes.sort_index(inplace=True)
-        await self.exibir_animes()
+        self.exibir_animes()
 
-    async def exibir_animes(self, animes=pd.DataFrame(), pesquisa=False):
-        if not pesquisa:
-            try:
-                self.query_one("#frame_log", RichLog).remove()
-            except Exception:
-                pass
-            animes = self.animes.copy()
-        try:
-            self.query_one(".n_animes_frame", Horizontal).remove()
-        except Exception:
-            pass
-        else:
-            await self.query_one(".painel_animes", Container).remove()
-        n_animes_label = Label(f"{len(animes)} Animes", classes="n_animes")
+    def exibir_animes(self):
+        n_animes_label = Label(f"{len(self.animes)} Animes", classes="n_animes")
         n_animes_container = Horizontal(n_animes_label, classes="n_animes_frame")
         self.mount(n_animes_container)
-        try:
-            painel_animes = self.query_one(".painel_animes", Container)
-        except Exception:
-            painel_animes = Container(classes="painel_animes")
-            self.mount(painel_animes)
-        else:
-            painel_animes.query().remove()
-            painel_animes.display = True
-        for i, (nome, anime) in enumerate(animes.iterrows()):
+        painel_animes = Container(classes="painel_animes")
+        self.mount(painel_animes)
+        for i, (nome, anime) in enumerate(self.animes.iterrows()):
             imagem_poster = Image.open(io.BytesIO(anime["imagem"]))
             largura_caractere = 24
             proporcao = largura_caractere / imagem_poster.width
@@ -425,8 +570,6 @@ if __name__ == "__main__":
     logger = logging.getLogger()
     logger.addHandler(CustomHandler())
     core.verificar_navegador()
-    core.verificar_ffmpeg()
     asyncio.run(core.verifica_cookies())
     app = AnimeDownloaderTUI()
     app.run()
-    # os.startfile("log.log")

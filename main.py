@@ -4,7 +4,7 @@ import os
 def configurar_diretorios():
     caminhos = {
         "animes": os.path.join(
-            os.path.expandvars(r"%userprofile%"), "Desktop", "Animes_teste"
+            os.path.expandvars(r"%userprofile%"), "Desktop", "Animes"
         )
     }
     for pasta in (i for i in caminhos.values()):
@@ -22,7 +22,6 @@ from PIL import Image
 import io
 import re
 import pandas as pd
-from shutil import rmtree
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, Label, RichLog, Static, Input
 from textual.containers import Vertical, Container, Horizontal
@@ -117,11 +116,105 @@ class AnimeInfo(Screen):
         self.app.push_screen(AnimeDownload(anime, eps_baixados))
 
     def action_deletar(self):
-        dados = self.app.screen_stack[1].animes
-        core.deletar_anime(self.anime_series, dados)
-        self.app.push_screen(MenuPrincipal())
+        if self.anime_series.get("caminho"):
+            dados = self.app.screen_stack[1].animes
+            core.deletar_anime(self.anime_series, dados)
+            self.app.push_screen(MenuPrincipal())
+
+    def action_listar(self):
+        if self.anime_series.get("caminho"):
+            self.app.push_screen(AnimeEpExibir(self.anime_series["caminho"]))
+
+    def action_abrir(self):
+        if self.anime_series.get("caminho"):
+            core.abrir_pasta(self.anime_series["caminho"])
 
     def action_sair(self):
+        self.app.pop_screen()
+
+
+class AnimeEpExibir(Screen):
+    BINDINGS = [
+        Binding("escape", "voltar", show=False),
+        Binding("enter", "exibir", "Abrir Ep"),
+        Binding("up", "cima", show=False),
+        Binding("down", "baixo", show=False),
+        Binding("left", "esquerda", show=False),
+        Binding("right", "direita", show=False),
+    ]
+
+    def __init__(
+        self,
+        caminho: str,
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+    ) -> None:
+        super().__init__(name, id, classes)
+        self.caminho = caminho
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Footer()
+        for n, d in enumerate(os.scandir(self.caminho)):
+            nome = re.search(r"- (\d*) \[1080.*$", d.name).group(1)
+            nome = Label("Episodio " + nome, classes="anime_nome")
+            yield nome
+            if n == 0:
+                nome.add_class("selecionado")
+
+    def action_direita(self):
+        eps = self.query(".anime_nome")
+        for n, ep in enumerate(eps.__iter__()):
+            if ep.has_class("selecionado"):
+                if n + 1 < eps.__len__():
+                    ep.remove_class("selecionado")
+                    eps[n + 1].add_class("selecionado")
+                break
+
+    def action_esquerda(self):
+        eps = self.query(".anime_nome")
+        for n, ep in enumerate(eps.__iter__()):
+            if ep.has_class("selecionado"):
+                if n - 1 >= 0:
+                    ep.remove_class("selecionado")
+                    eps[n - 1].add_class("selecionado")
+                break
+
+    def action_cima(self):
+        eps = self.query(".anime_nome")
+        for n, ep in enumerate(eps.__iter__()):
+            if ep.has_class("selecionado"):
+                if n - 6 >= 0:
+                    ep.remove_class("selecionado")
+                    eps[n - 6].add_class("selecionado")
+                else:
+                    ep.remove_class("selecionado")
+                    eps[0].add_class("selecionado")
+                break
+
+    def action_baixo(self):
+        eps = self.query(".anime_nome")
+        for n, ep in enumerate(eps.__iter__()):
+            if ep.has_class("selecionado"):
+                if n + 6 < eps.__len__():
+                    ep.remove_class("selecionado")
+                    eps[n + 6].add_class("selecionado")
+                else:
+                    ep.remove_class("selecionado")
+                    eps[-1].add_class("selecionado")
+                break
+
+    def action_exibir(self):
+        ep = self.query_one(".selecionado", Label)
+        ep = re.search(r"Episodio (.*)$", ep.content).group(1)
+        for d in os.scandir(self.caminho):
+            nome = re.search(r"- (\d*) \[1080.*$", d.name).group(1)
+            if nome == ep:
+                os.startfile(d.path)
+                break
+
+    def action_voltar(self):
         self.app.pop_screen()
 
 

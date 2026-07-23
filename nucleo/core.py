@@ -24,11 +24,16 @@ from collections.abc import Callable
 path = os.getenv("caminho")
 
 
-async def pesquisa_info(anime: dict, limitador: asyncio.Semaphore) -> dict | None:
+async def pesquisa_info(
+    anime: dict, limitador: asyncio.Semaphore, tradutor: GT
+) -> dict | None:
     async with limitador:
-        tradutor = GT("en", "pt")
         try:
-            anime["info"] = await anime_info_pesquisa(anime["id"])
+            if anime.get("id"):
+                anime["info"] = await anime_info_pesquisa(anime["id"])
+            else:
+                anime["info"] = await anime_info_pesquisa(nome=anime["nome"])
+                anime["id"] = anime["info"]["id"]
         except Exception:
             return None
         link = anime["info"]["main_picture"]["large"]
@@ -107,7 +112,8 @@ async def pesquisar(nome: str, func_log: Callable[[str], None]):
     else:
         func_log("Nenhum anime encontrado no Infinite")
     limitador = asyncio.Semaphore(5)
-    animes = [pesquisa_info(a, limitador) for a in animes]
+    tradutor = GT("en", "pt")
+    animes = [pesquisa_info(a, limitador, tradutor) for a in animes]
     func_log(f"Pesquisando informações sobre {len(animes)} animes...")
     animes = await asyncio.gather(*animes)
     animes = [a for a in animes if a]

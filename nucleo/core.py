@@ -15,11 +15,12 @@ import sys
 import subprocess
 import shutil
 import asyncio
-from customtkinter import CTkLabel, CTkFrame
-import customtkinter as ctk
+from textual.containers import Container
+from textual.widgets import ProgressBar, Label
 import pandas as pd
 from deep_translator import GoogleTranslator as GT
 from collections.abc import Callable
+import time
 
 path = os.getenv("caminho")
 
@@ -195,14 +196,60 @@ def data_info(broadcast):
 
 
 async def selecionar_ep(anime: pd.Series) -> pd.Series:
-    if anime["server"] == "Erai":
-        eps = await erai_animes.extrair_ep(anime["link"])
-    elif anime["server"] == "TopAnimes":
-        eps = await top_animes.episodios(anime["link"])
-    elif anime["server"] == "Infinite":
-        eps = await infinite.episodios(anime["link"])
+    fontes = {
+        "Erai": lambda link: erai_animes.extrair_ep(link),
+        "TopAnimes": lambda link: top_animes.episodios(link),
+        "Infinite": lambda link: infinite.episodios(link),
+    }
+    eps = await fontes[anime["server"]](anime["link"])
     anime["ep"] = [{"ep": f"Episodio {ep}", "link": eps[ep]} for ep in eps.keys()]
     return anime
+
+
+async def baixar(ep: dict, caixa: Container):
+    header = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+    }
+    extensao = re.search(r"/\d*(\.\w{3})", ep["link"]).group(1)
+    caminho = os.path.join(ep["caminho"], " - ".join(ep["ep"].split()) + extensao)
+    with open(caminho, "wb") as arquivo:
+        async with Client(headers=header) as navegador:
+            baixado = 0
+            tempo_utlimo_calculo = time.perf_counter()
+            baixado_intervalo = 0
+            velocidade_atual = 0
+            async with navegador.stream(
+                "GET", ep["link"], follow_redirects=True
+            ) as response:
+                total = int(response.headers["content-length"])
+                barra = ProgressBar(total, show_eta=False, classes="barra_download")
+                texto_velocidade = Label("0MB/s", classes="velocidade")
+                texto_quantidade = Label("0MB", classes="quantidade")
+                linha = Container(
+                    barra, texto_velocidade, texto_quantidade, classes="linha"
+                )
+                caixa.mount(linha)
+                async for chunck in response.aiter_raw():
+                    arquivo.write(chunck)
+                    tamanho_chunck = len(chunck)
+                    baixado += tamanho_chunck
+                    baixado_intervalo += tamanho_chunck
+                    tempo_agora = time.perf_counter()
+                    delta_tempo = tempo_agora - tempo_utlimo_calculo
+                    if delta_tempo > 0.5:
+                        velocidade_atual = baixado_intervalo / delta_tempo
+                        tempo_utlimo_calculo = tempo_agora
+                        baixado_intervalo = 0
+                        velocidade_atual /= 1024
+                        if velocidade_atual > 1024:
+                            velocidade_atual /= 1024
+                            velocidade_atual = f"{velocidade_atual:.2f}MB/s"
+                        else:
+                            velocidade_atual = f"{velocidade_atual:.2f}KB/s"
+                    barra.advance(tamanho_chunck)
+                    texto_velocidade.update(velocidade_atual.__str__())
+                    texto_quantidade.update(f"{baixado / 1024**2:.2f}MB")
+                texto_velocidade.update("0MB/s")
 
 
 async def baixar_ep_erai(ep: dict):
@@ -210,42 +257,6 @@ async def baixar_ep_erai(ep: dict):
     await qbit.init_sessao()
     if qbit.sessao:
         await qbit.baixar(ep)
-
-
-async def baixar_ep_top_animes(ep, frame: CTkFrame):
-    frame_barra = CTkFrame(frame, fg_color="transparent")
-    frame_barra.pack(fill="both", expand=True)
-    label = CTkLabel(frame_barra, text=f"Baixando {ep['ep']}... 0%", font=("Arial", 15))
-    label.pack(side="left", padx=10)
-    barra = ctk.CTkProgressBar(frame_barra)
-    barra.pack(expand=True, fill="x", padx=10)
-    barra.set(0)
-
-    def callback(progresso: float, velocidade: float):
-        barra.set(progresso)
-        label.configure(
-            text=f"Baixando {ep['ep']}... {progresso * 100:.2f}%   {velocidade}"
-        )
-
-    await top_animes.baixar(ep, callback)
-
-
-async def baixar_ep_infinite(ep, frame: CTkFrame):
-    frame_barra = CTkFrame(frame, fg_color="transparent")
-    frame_barra.pack(fill="both", expand=True)
-    label = CTkLabel(frame_barra, text=f"Baixando {ep['ep']}... 0%", font=("Arial", 15))
-    label.pack(side="left", padx=10)
-    barra = ctk.CTkProgressBar(frame_barra)
-    barra.pack(expand=True, fill="x", padx=10)
-    barra.set(0)
-
-    def callback(progresso: float, velocidade: float):
-        barra.set(progresso)
-        label.configure(
-            text=f"Baixando {ep['ep']}... {progresso * 100:.2f}%   {velocidade}"
-        )
-
-    await infinite.baixar(ep, callback)
 
 
 async def update(versao):

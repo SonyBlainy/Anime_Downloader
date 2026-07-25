@@ -92,7 +92,26 @@ AnimeEpExibir {
         }
     }
 }
-
+AnimeBarraDownload {
+    #barra_download_caixa {
+        layout: vertical;
+        width: 100%;
+        height: 100%;
+        align: center middle;
+        .linha {
+            layout: horizontal;
+            align: center middle;
+            height: 4;
+            width: auto;
+            .barra_download {
+                margin: 0 1;
+            }
+            .quantidade {
+                margin: 0 1;
+            }
+        }
+    }
+}
 .n_animes_frame {
     height: auto;
     width: 100%;

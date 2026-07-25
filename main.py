@@ -105,15 +105,19 @@ class AnimeInfo(Screen):
     @work
     async def action_download(self):
         anime = await core.selecionar_ep(self.anime_series)
+        nomes = []
         try:
             eps_baixados = os.listdir(anime["caminho"])
         except Exception:
-            eps_baixados = []
+            pass
         else:
-            eps_baixados = [
-                re.search(r"- (\w*) \[1080p.*$", ep).group(1) for ep in eps_baixados
-            ]
-        self.app.push_screen(AnimeDownload(anime, eps_baixados))
+            for ep in eps_baixados:
+                ep = re.search(r"- (\w*) \[1080p.*$|- (\d*)\.", ep)
+                if ep.group(1):
+                    nomes.append(ep.group(1))
+                else:
+                    nomes.append(ep.group(2))
+        self.app.push_screen(AnimeDownload(anime, nomes))
 
     def action_deletar(self):
         if self.anime_series.get("caminho"):
@@ -157,7 +161,11 @@ class AnimeEpExibir(Screen):
         yield Header()
         yield Footer()
         for n, d in enumerate(os.scandir(self.caminho)):
-            nome = re.search(r"- (\d*) \[1080.*$", d.name).group(1)
+            nome = re.search(r"- (\d*) \[1080.*$|- (\d*)\.", d.name)
+            if nome.group(1):
+                nome = nome.group(1)
+            else:
+                nome = nome.group(2)
             nome = Label("Episodio " + nome, classes="anime_nome")
             yield nome
             if n == 0:
@@ -209,7 +217,11 @@ class AnimeEpExibir(Screen):
         ep = self.query_one(".selecionado", Label)
         ep = re.search(r"Episodio (.*)$", ep.content).group(1)
         for d in os.scandir(self.caminho):
-            nome = re.search(r"- (\d*) \[1080.*$", d.name).group(1)
+            nome = re.search(r"- (\d*) \[1080.*$|- (\d*)\.", d.name)
+            if nome.group(1):
+                nome = nome.group(1)
+            else:
+                nome = nome.group(2)
             if nome == ep:
                 os.startfile(d.path)
                 break
@@ -424,23 +436,66 @@ class AnimeDownload(Screen):
     async def action_baixar(self):
         ep_s = self.query(".selecionado")
         eps_s = [ep.content for ep in ep_s]
-        baixar = []
         self.anime = core.criar_pasta(self.anime)
         if self.anime["server"] == "Erai":
+            baixar = []
             for ep in self.anime["ep"]:
                 if ep["ep"] in eps_s:
                     ep["caminho"] = self.anime["caminho"]
                     baixar.append(core.baixar_ep_erai(ep))
-        await asyncio.gather(*baixar)
+            await asyncio.gather(*baixar)
+            menu = self.app.screen_stack[1]
+            dados = menu.animes
+            core.adicionar_anime(dados, self.anime)
+            while len(self.app.screen_stack) > 1:
+                self.app.pop_screen()
+            self.app.push_screen(MenuPrincipal())
+        elif self.anime["server"] == "TopAnimes" or self.anime["server"] == "Infinite":
+            eps = []
+            for ep in self.anime["ep"]:
+                if ep["ep"] in eps_s:
+                    ep["caminho"] = self.anime["caminho"]
+                    eps.append(ep)
+            self.app.push_screen(AnimeBarraDownload(eps, self.anime))
+
+    def action_voltar(self):
+        self.dismiss()
+
+
+class AnimeBarraDownload(Screen):
+    def __init__(
+        self,
+        eps: list[dict],
+        anime: pd.Series,
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+    ) -> None:
+        super().__init__(name, id, classes)
+        self.eps = eps
+        self.anime = anime
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Footer()
+        yield Container(id="barra_download_caixa")
+
+    def on_mount(self):
+        self.baixar(self.eps)
+
+    @work
+    async def baixar(self, eps: list[dict]):
+        caixa = self.query_one(Container)
+        downloads = []
+        for ep in eps:
+            downloads.append(core.baixar(ep, caixa))
+        await asyncio.gather(*downloads)
         menu = self.app.screen_stack[1]
         dados = menu.animes
         core.adicionar_anime(dados, self.anime)
         while len(self.app.screen_stack) > 1:
             self.app.pop_screen()
         self.app.push_screen(MenuPrincipal())
-
-    def action_voltar(self):
-        self.dismiss()
 
 
 class AnimePesquisa(Screen):
@@ -513,12 +568,10 @@ class AnimeExibirPesquisa(Screen):
         )
         for i, p in enumerate(posters):
             if "selecionado" in p.classes:
-                poster_selecionado = p
-                n = i
-                if n + 1 < len(posters):
-                    poster_selecionado.remove_class("selecionado")
-                    posters[n + 1].add_class("selecionado")
-                    posters[n + 1].parent.scroll_visible()
+                if i + 1 < len(posters):
+                    p.remove_class("selecionado")
+                    posters[i + 1].add_class("selecionado")
+                    posters[i + 1].parent.scroll_visible()
                 break
 
     def action_esquerda(self):
@@ -527,12 +580,10 @@ class AnimeExibirPesquisa(Screen):
         )
         for i, p in enumerate(posters):
             if "selecionado" in p.classes:
-                poster_selecionado = p
-                n = i
-                if n - 1 >= 0:
-                    poster_selecionado.remove_class("selecionado")
-                    posters[n - 1].add_class("selecionado")
-                    posters[n - 1].parent.scroll_visible()
+                if i - 1 >= 0:
+                    p.remove_class("selecionado")
+                    posters[i - 1].add_class("selecionado")
+                    posters[i - 1].parent.scroll_visible()
                 break
 
     def action_cima(self):
@@ -541,14 +592,12 @@ class AnimeExibirPesquisa(Screen):
         )
         for i, p in enumerate(posters):
             if "selecionado" in p.classes:
-                poster_selecionado = p
-                n = i
-                if n - 5 >= 0:
-                    poster_selecionado.remove_class("selecionado")
-                    posters[n - 5].add_class("selecionado")
-                    posters[n - 5].parent.scroll_visible()
+                if i - 5 >= 0:
+                    p.remove_class("selecionado")
+                    posters[i - 5].add_class("selecionado")
+                    posters[i - 5].parent.scroll_visible()
                 else:
-                    poster_selecionado.remove_class("selecionado")
+                    p.remove_class("selecionado")
                     posters[0].add_class("selecionado")
                     posters[0].parent.scroll_visible()
                 break
@@ -559,14 +608,12 @@ class AnimeExibirPesquisa(Screen):
         )
         for i, p in enumerate(posters):
             if "selecionado" in p.classes:
-                poster_selecionado = p
-                n = i
-                if n + 5 < len(posters):
-                    poster_selecionado.remove_class("selecionado")
-                    posters[n + 5].add_class("selecionado")
-                    posters[n + 5].parent.scroll_visible()
+                if i + 5 < len(posters):
+                    p.remove_class("selecionado")
+                    posters[i + 5].add_class("selecionado")
+                    posters[i + 5].parent.scroll_visible()
                 else:
-                    poster_selecionado.remove_class("selecionado")
+                    p.remove_class("selecionado")
                     posters[len(posters) - 1].add_class("selecionado")
                     posters[len(posters) - 1].parent.scroll_visible()
                 break

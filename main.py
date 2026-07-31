@@ -15,7 +15,6 @@ def configurar_diretorios():
 configurar_diretorios()
 import sys
 from multiprocessing import freeze_support
-from datetime import datetime
 import asyncio
 import logging
 from PIL import Image
@@ -46,6 +45,12 @@ class AnimePoster(Static):
     def __init__(self, renderizavel, series: pd.Series, *args, **kwars) -> None:
         super().__init__(renderizavel, *args, **kwars)
         self.anime_series = series
+
+
+class Episodio(Label):
+    def __init__(self, content, caminho: str, *args, **kwargs) -> None:
+        super().__init__(content, *args, **kwargs)
+        self.caminho = caminho
 
 
 class AnimeInfo(Screen):
@@ -94,10 +99,16 @@ class AnimeInfo(Screen):
                         f"Season: {infos['start_season']['season'].capitalize()}",
                         id="season",
                     )
+                    if infos["broadcast"].get("dia"):
+                        yield Label(
+                            f"Lançamento: {infos['broadcast']['dia']} as {infos['broadcast']['hora']}",
+                            id="lancamento",
+                        )
                     yield Label(
-                        f"Lançamento: {infos['broadcast']['dia']} as {infos['broadcast']['hora']}",
-                        id="lancamento",
+                        f"Data de Lançamento: {infos['start_date']}",
+                        id="data_lancamento",
                     )
+                    yield Label("Studios: " + ", ".join(infos["studios"]), id="studios")
                 yield Label("Genêros: " + ", ".join(infos["genres"]), id="generos")
                 with Container(id="sinopse_frame"):
                     yield Label(f"Sinopse:\n{infos['synopsis']}", id="sinopse")
@@ -112,11 +123,8 @@ class AnimeInfo(Screen):
             pass
         else:
             for ep in eps_baixados:
-                ep = re.search(r"- (\w*) \[1080p.*$|- (\d*)\.", ep)
-                if ep.group(1):
-                    nomes.append(ep.group(1))
-                else:
-                    nomes.append(ep.group(2))
+                ep = re.search(r"- ([^-]*) \[1080p|- (\d*)\.", ep)
+                nomes.append([a for a in ep.groups() if a][0])
         self.app.push_screen(AnimeDownload(anime, nomes))
 
     def action_deletar(self):
@@ -161,12 +169,9 @@ class AnimeEpExibir(Screen):
         yield Header()
         yield Footer()
         for n, d in enumerate(os.scandir(self.caminho)):
-            nome = re.search(r"- (\d*) \[1080.*$|- (\d*)\.", d.name)
-            if nome.group(1):
-                nome = nome.group(1)
-            else:
-                nome = nome.group(2)
-            nome = Label("Episodio " + nome, classes="anime_nome")
+            nome = re.search(r"- ([^-]*) \[1080|- (\d*)\.", d.name)
+            nome = [a for a in nome.groups() if a][0]
+            nome = Episodio("Episodio " + nome, d.path, classes="anime_nome")
             yield nome
             if n == 0:
                 nome.add_class("selecionado")
@@ -214,17 +219,8 @@ class AnimeEpExibir(Screen):
                 break
 
     def action_exibir(self):
-        ep = self.query_one(".selecionado", Label)
-        ep = re.search(r"Episodio (.*)$", ep.content).group(1)
-        for d in os.scandir(self.caminho):
-            nome = re.search(r"- (\d*) \[1080.*$|- (\d*)\.", d.name)
-            if nome.group(1):
-                nome = nome.group(1)
-            else:
-                nome = nome.group(2)
-            if nome == ep:
-                os.startfile(d.path)
-                break
+        ep = self.query_one(".selecionado", Episodio)
+        os.startfile(ep.caminho)
 
     def action_voltar(self):
         self.app.pop_screen()
@@ -450,7 +446,7 @@ class AnimeDownload(Screen):
             while len(self.app.screen_stack) > 1:
                 self.app.pop_screen()
             self.app.push_screen(MenuPrincipal())
-        elif self.anime["server"] == "TopAnimes" or self.anime["server"] == "Infinite":
+        elif self.anime["server"] in ["TopAnimes", "Infinite"]:
             eps = []
             for ep in self.anime["ep"]:
                 if ep["ep"] in eps_s:

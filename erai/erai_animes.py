@@ -23,11 +23,6 @@ class ErroCookie(Exception):
         super().__init__("Erro ao utilizar cookie")
 
 
-def divisao_lista(lista, tamanho=5):
-    for i in range(0, len(lista), tamanho):
-        yield lista[i : i + tamanho]
-
-
 def ler_cookies():
     with open("cookies.json") as arquivo:
         return json.load(arquivo)
@@ -123,27 +118,25 @@ async def extrair_ep(link: str):
     heavc = {}
     noar = {}
     for ep in reversed(no_ar_lista):
-        if ep.select_one('a[data-title="Encodings"]'):
-            nome = ep.select_one("tr>th>a:nth-child(2)").text
-            nome = re.search(r" - (\w*) ", nome).group(1)
-            link = ep.select("tr")[-1]
-            link = link.find("a", text="magnet").get("href")
-            heavc[nome] = link
-        elif (
-            ep.select_one('a[data-title="Airing"]')
-            or ep.select_one('a[data-title="Batch"]')
-            or ep.select_one('a[data-title="Movie or Special Episode"]')
-        ):
-            nome = ep.select_one("tr>th>a:nth-child(2)").text
-            if ep.select_one('a[data-title="Movie or Special Episode"]'):
-                nome = re.search(r" - (.*)$", nome).group(1)
-                nome = nome.strip()
-            else:
-                nome = re.search(r" - (\w*) ", nome).group(1)
-            link = ep.find("span", text=re.compile(r"1080p "))
-            link = link.parent
-            link = link.find("a", text="magnet").get("href")
-            noar[nome] = link
+        ep_elemento_texto = ep.select_one("tr>th>a:nth-child(2)").text
+        paren = re.findall(r"\((.*?)\)", ep_elemento_texto)
+        if "Korean Audio" and "Chinese Audio" not in paren:
+            tipo = ep.select_one("tr>th>a").get("data-title")
+            if tipo == "Encodings":
+                nome = re.search(r" - (\w*) ", ep_elemento_texto).group(1)
+                link = ep.select("tr")[-1]
+                link = link.find("a", text="magnet").get("href")
+                heavc[nome] = link
+            elif tipo in ["Airing", "Batch", "Movie of Special Episode"]:
+                if tipo == "Movie of Special Episode":
+                    nome = re.search(r" - (.*)$", ep_elemento_texto).group(1)
+                    nome = nome.strip()
+                else:
+                    nome = re.search(r" - (\w*) ", ep_elemento_texto).group(1)
+                link = ep.find("span", text=re.compile(r"1080p "))
+                link = link.parent
+                link = link.find("a", text="magnet").get("href")
+                noar[nome] = link
     filtro = heavc.copy()
     filtro.update({k: v for k, v in noar.items() if k not in heavc.keys()})
     return filtro

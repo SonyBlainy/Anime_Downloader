@@ -45,6 +45,9 @@
             margin: 1 0;
             grid-columns: 1fr;
         }
+        #generos {
+            width: 100%;
+        }
         #sinopse_frame {
             layout: vertical;
             width: 100%;

@@ -69,6 +69,13 @@ async def pesquisa_info(
             anime["info"]["broadcast"]["dia"] = tradutor.translate(
                 anime["info"]["broadcast"]["dia"]
             )
+        anime["info"]["start_date"] = datetime.strptime(
+            anime["info"]["start_date"], "%Y-%m-%d"
+        )
+        anime["info"]["start_date"] = datetime.strftime(
+            anime["info"]["start_date"], "%d/%m/%Y"
+        )
+        anime["info"]["studios"] = [s["name"] for s in anime["info"]["studios"]]
         return anime
 
 
@@ -133,16 +140,14 @@ async def anime_info_pesquisa(id: int | None = None, nome: str | None = None):
     infos = [
         "title",
         "start_date",
-        "end_date",
         "mean",
+        "studios",
         "status",
         "genres",
         "num_episodes",
         "start_season",
         "broadcast",
         "source",
-        "related_anime",
-        "related_manga",
         "synopsis",
     ]
 
@@ -176,7 +181,7 @@ def data_info(broadcast):
         "Monday": 0,
         "Tuesday": 1,
         "Wednesday": 2,
-        "Thurday": 3,
+        "Thursday": 3,
         "Friday": 4,
         "Saturday": 5,
         "Sunday": 6,
@@ -213,12 +218,12 @@ async def baixar(ep: dict, caixa: Container):
     extensao = re.search(r"/\d*(\.\w{3})", ep["link"]).group(1)
     caminho = os.path.join(ep["caminho"], " - ".join(ep["ep"].split()) + extensao)
     with open(caminho, "wb") as arquivo:
-        async with Client(headers=header) as navegador:
+        async with Client(headers=header) as cliente:
             baixado = 0
             tempo_utlimo_calculo = time.perf_counter()
             baixado_intervalo = 0
             velocidade_atual = 0
-            async with navegador.stream(
+            async with cliente.stream(
                 "GET", ep["link"], follow_redirects=True
             ) as response:
                 total = int(response.headers["content-length"])
@@ -303,11 +308,12 @@ def deletar_anime(anime: pd.Series, dados: pd.DataFrame) -> None:
 
 async def obter_cookies():
     cookies = await navegador.cookies()
-    lista_cookies = [
-        {i["name"]: i["value"]} for i in cookies if "wordpress_logged_in" in i["name"]
-    ][0]
+    for c in cookies:
+        if "wordpress_logged_in" in c["name"]:
+            cookie = {c["name"]: c["value"]}
+            break
     with open("cookies.json", "w") as arquivo:
-        json.dump(lista_cookies, arquivo, indent=4)
+        json.dump(cookie, arquivo, indent=4)
 
 
 def verificar_navegador():

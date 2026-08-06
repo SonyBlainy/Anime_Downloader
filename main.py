@@ -23,7 +23,9 @@ import re
 import pandas as pd
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, Label, RichLog, Static, Input
+from textual.widget import Widget
 from textual.containers import Vertical, Container, Horizontal
+from textual.css.query import DOMQuery
 from textual import work, on
 from textual.binding import Binding
 from textual.screen import Screen
@@ -51,6 +53,213 @@ class Episodio(Label):
     def __init__(self, content, caminho: str, *args, **kwargs) -> None:
         super().__init__(content, *args, **kwargs)
         self.caminho = caminho
+
+
+def navegacao(
+    acao: str, quantidade: int, query: DOMQuery[Widget], tipo: str = "assistir"
+):
+    def direita():
+        if tipo == "download":
+            eps_baixados = [ep for ep in query if ep.has_class("selecionado")]
+            if len(eps_baixados) > 1:
+                for ep in eps_baixados[:-1]:
+                    ep.remove_class("selecionado")
+            for n, ep in enumerate(query):
+                if ep.has_class("selecionado"):
+                    if n == len(query) - 1:
+                        break
+                    elif not query[n + 1].has_class("baixado"):
+                        ep.remove_class("selecionado")
+                        query[n + 1].add_class("selecionado")
+                    else:
+                        for ep2 in query[n + 1 :]:
+                            if not ep2.has_class("baixado"):
+                                ep.remove_class("selecionado")
+                                ep2.add_class("selecionado")
+                                break
+                    break
+        else:
+            for n, ep in enumerate(query):
+                if ep.has_class("selecionado") and n + 1 < len(query):
+                    ep.remove_class("selecionado")
+                    query[n + 1].add_class("selecionado")
+                    if tipo == "anime":
+                        query[n + 1].parent.scroll_visible()
+                    break
+
+    def esquerda():
+        if tipo == "download":
+            eps_baixados = [ep for ep in query if ep.has_class("selecionado")]
+            if len(eps_baixados) > 1:
+                for ep in eps_baixados[1:]:
+                    ep.remove_class("selecionado")
+            for n, ep in enumerate(query):
+                if ep.has_class("selecionado"):
+                    if n == 0:
+                        break
+                    elif not query[n - 1].has_class("baixado"):
+                        ep.remove_class("selecionado")
+                        query[n - 1].add_class("selecionado")
+                    else:
+                        for ep2 in query[n - 1 :: -1]:
+                            if not ep2.has_class("baixado"):
+                                ep.remove_class("selecionado")
+                                ep2.add_class("selecionado")
+                                break
+                    break
+        else:
+            for n, ep in enumerate(query):
+                if ep.has_class("selecionado") and n - 1 >= 0:
+                    ep.remove_class("selecionado")
+                    query[n - 1].add_class("selecionado")
+                    if tipo == "anime":
+                        query[n - 1].parent.scroll_visible()
+                    break
+
+    def cima():
+        if tipo == "download":
+            eps_baixados = [ep for ep in query if ep.has_class("selecionado")]
+            if len(eps_baixados) > 1:
+                for ep in eps_baixados[1::-1]:
+                    ep.remove_class("selecionado")
+            for n, ep in enumerate(query):
+                if ep.has_class("selecionado"):
+                    if n == 0:
+                        break
+                    elif n - quantidade >= 0:
+                        if not query[n - quantidade].has_class("baixado"):
+                            ep.remove_class("selecionado")
+                            query[n - quantidade].add_class("selecionado")
+                        else:
+                            for ep2 in query[n - quantidade + 1 : n]:
+                                if not ep2.has_class("baixado"):
+                                    ep.remove_class("selecionado")
+                                    ep2.add_class("selecionado")
+                                    break
+                    else:
+                        if not query[0].has_class("baixado"):
+                            ep.remove_class("selecionado")
+                            query[0].add_class("selecionado")
+                        else:
+                            for ep2 in query[1:n]:
+                                if not ep2.has_class("baixado"):
+                                    ep.remove_class("selecionado")
+                                    ep2.add_class("selecionado")
+                                    break
+                    break
+        else:
+            for n, ep in enumerate(query):
+                if ep.has_class("selecionado"):
+                    ep.remove_class("selecionado")
+                    if n - quantidade >= 0:
+                        query[n - quantidade].add_class("selecionado")
+                        if tipo == "anime":
+                            query[n - quantidade].parent.scroll_visible()
+                    else:
+                        query[0].add_class("selecionado")
+                        if tipo == "anime":
+                            query[0].parent.scroll_visible()
+                    break
+
+    def baixo():
+        if tipo == "download":
+            eps_baixados = [ep for ep in query if ep.has_class("selecionado")]
+            if len(eps_baixados) > 1:
+                for ep in eps_baixados[:-1]:
+                    ep.remove_class("selecionado")
+            for n, ep in enumerate(query):
+                if ep.has_class("selecionado"):
+                    if n == len(query) - 1:
+                        break
+                    elif n + quantidade < len(query):
+                        if not query[n + quantidade].has_class("baixado"):
+                            ep.remove_class("selecionado")
+                            query[n + quantidade].add_class("selecionado")
+                        else:
+                            for ep2 in query[n + quantidade : n : -1]:
+                                if not ep2.has_class("baixado"):
+                                    ep.remove_class("selecionado")
+                                    ep2.add_class("selecionado")
+                                    break
+                    else:
+                        if not query[-1].has_class("baixado"):
+                            ep.remove_class("selecionado")
+                            query[-1].add_class("selecionado")
+                        else:
+                            for ep2 in query[:n:-1]:
+                                if not ep2.has_class("baixado"):
+                                    ep.remove_class("selecionado")
+                                    ep2.add_class("selecionado")
+                                    break
+                    break
+        else:
+            for n, ep in enumerate(query):
+                if ep.has_class("selecionado"):
+                    ep.remove_class("selecionado")
+                    if n + quantidade < len(query):
+                        query[n + quantidade].add_class("selecionado")
+                        if tipo == "anime":
+                            query[n + quantidade].parent.scroll_visible()
+                    else:
+                        query[-1].add_class("selecionado")
+                        if tipo == "anime":
+                            query[-1].parent.scroll_visible()
+                    break
+
+    def shift_direita():
+        eps_baixados = [n for n, ep in enumerate(query) if ep.has_class("selecionado")]
+        n = eps_baixados[-1] + 1
+        if n < len(query):
+            if not query[n].has_class("baixado"):
+                query[n].add_class("selecionado")
+            else:
+                for ep in query[n:]:
+                    if not ep.has_class("baixado"):
+                        ep.add_class("selecionado")
+                        break
+
+    def shift_esquerda():
+        eps_baixados = [n for n, ep in enumerate(query) if ep.has_class("selecionado")]
+        n = eps_baixados[0] - 1
+        if n >= 0:
+            if not query[n].has_class("baixado"):
+                query[n].add_class("selecionado")
+            else:
+                for ep in query[n::-1]:
+                    if not ep.has_class("baixado"):
+                        ep.add_class("selecionado")
+                        break
+
+    def shift_cima():
+        eps_baixados = [n for n, ep in enumerate(query) if ep.has_class("selecionado")]
+        n = eps_baixados[0] - quantidade
+        if n >= 0:
+            for ep in query[eps_baixados[0] : n - 1 : -1]:
+                if not ep.has_class("baixado"):
+                    ep.add_class("selecionado")
+
+    def shift_baixo():
+        eps_baixados = [n for n, ep in enumerate(query) if ep.has_class("selecionado")]
+        n = eps_baixados[-1] + quantidade
+        if n < len(query):
+            for ep in query[eps_baixados[-1] - 1 : n + 1]:
+                if not ep.has_class("baixado"):
+                    ep.add_class("selecionado")
+
+    escolha = {
+        "direita": lambda: direita(),
+        "esquerda": lambda: esquerda(),
+        "cima": lambda: cima(),
+        "baixo": lambda: baixo(),
+        "shift_direita": lambda: shift_direita(),
+        "shift_esquerda": lambda: shift_esquerda(),
+        "shift_cima": lambda: shift_cima(),
+        "shift_baixo": lambda: shift_baixo(),
+    }
+    try:
+        escolha[acao]()
+    except Exception:
+        pass
 
 
 class AnimeInfo(Screen):
@@ -178,45 +387,19 @@ class AnimeEpExibir(Screen):
 
     def action_direita(self):
         eps = self.query(".anime_nome")
-        for n, ep in enumerate(eps.__iter__()):
-            if ep.has_class("selecionado"):
-                if n + 1 < eps.__len__():
-                    ep.remove_class("selecionado")
-                    eps[n + 1].add_class("selecionado")
-                break
+        navegacao("direita", 6, eps)
 
     def action_esquerda(self):
         eps = self.query(".anime_nome")
-        for n, ep in enumerate(eps.__iter__()):
-            if ep.has_class("selecionado"):
-                if n - 1 >= 0:
-                    ep.remove_class("selecionado")
-                    eps[n - 1].add_class("selecionado")
-                break
+        navegacao("esquerda", 6, eps)
 
     def action_cima(self):
         eps = self.query(".anime_nome")
-        for n, ep in enumerate(eps.__iter__()):
-            if ep.has_class("selecionado"):
-                if n - 6 >= 0:
-                    ep.remove_class("selecionado")
-                    eps[n - 6].add_class("selecionado")
-                else:
-                    ep.remove_class("selecionado")
-                    eps[0].add_class("selecionado")
-                break
+        navegacao("cima", 6, eps)
 
     def action_baixo(self):
         eps = self.query(".anime_nome")
-        for n, ep in enumerate(eps.__iter__()):
-            if ep.has_class("selecionado"):
-                if n + 6 < eps.__len__():
-                    ep.remove_class("selecionado")
-                    eps[n + 6].add_class("selecionado")
-                else:
-                    ep.remove_class("selecionado")
-                    eps[-1].add_class("selecionado")
-                break
+        navegacao("baixo", 6, eps)
 
     def action_exibir(self):
         ep = self.query_one(".selecionado", Episodio)
@@ -269,165 +452,35 @@ class AnimeDownload(Screen):
 
     def action_direita(self):
         eps = self.query(".anime_nome")
-        eps_s = self.query(".selecionado")
-        if len(eps_s) > 1:
-            for ep in eps_s[:-1]:
-                ep.remove_class("selecionado")
-        for n, ep in enumerate(eps.__iter__()):
-            if ep.has_class("selecionado"):
-                if n + 1 < eps.__len__():
-                    if not eps[n + 1].has_class("baixado"):
-                        ep.remove_class("selecionado")
-                        eps[n + 1].add_class("selecionado")
-                    else:
-                        for ep2 in eps[n + 1 :]:
-                            if not ep2.has_class("baixado"):
-                                ep.remove_class("selecionado")
-                                ep2.add_class("selecionado")
-                                break
-                break
+        navegacao("direita", 6, eps, "download")
 
     def action_shift_direita(self):
         eps = self.query(".anime_nome")
-        ep_selecionado = []
-        for n, ep in enumerate(eps.__iter__()):
-            if ep.has_class("selecionado"):
-                ep_selecionado.append(n)
-        n = ep_selecionado[-1] + 1
-        if not eps[n].has_class("baixado"):
-            eps[n].add_class("selecionado")
-        else:
-            for ep in eps[n + 1 :]:
-                if not ep.has_class("baixado"):
-                    ep.add_class("selecionado")
-                    break
+        navegacao("shift_direita", 6, eps, "download")
 
     def action_esquerda(self):
         eps = self.query(".anime_nome")
-        eps_s = self.query(".selecionado")
-        if len(eps_s) > 1:
-            for ep in eps_s[1:]:
-                ep.remove_class("selecionado")
-        for n, ep in enumerate(eps.__iter__()):
-            if ep.has_class("selecionado"):
-                if n - 1 >= 0:
-                    if not eps[n - 1].has_class("baixado"):
-                        ep.remove_class("selecionado")
-                        eps[n - 1].add_class("selecionado")
-                    else:
-                        for ep2 in eps[n - 1 :: -1]:
-                            if not ep2.has_class("baixado"):
-                                ep.remove_class("selecionado")
-                                ep2.add_class("selecionado")
-                                break
-                break
+        navegacao("esquerda", 6, eps, "download")
 
     def action_shift_esquerda(self):
         eps = self.query(".anime_nome")
-        ep_selecionado = []
-        for n, ep in enumerate(eps.__iter__()):
-            if ep.has_class("selecionado"):
-                ep_selecionado.append(n)
-        n = ep_selecionado[0] - 1
-        if not eps[n].has_class("baixado"):
-            eps[n].add_class("selecionado")
-        else:
-            for ep in eps[: n - 1 : -1]:
-                if not ep.has_class("baixado"):
-                    ep.add_class("selecionado")
-                    break
+        navegacao("shift_esquerda", 6, eps, "download")
 
     def action_cima(self):
         eps = self.query(".anime_nome")
-        eps_s = self.query(".selecionado")
-        if len(eps_s) > 1:
-            for ep in eps_s[1:]:
-                ep.remove_class("selecionado")
-        for n, ep in enumerate(eps.__iter__()):
-            if ep.has_class("selecionado"):
-                if n - 6 >= 0:
-                    if not eps[n - 6].has_class("baixado"):
-                        ep.remove_class("selecionado")
-                        eps[n - 6].add_class("selecionado")
-                    else:
-                        for ep2 in eps[n - 6 :: -1]:
-                            if not ep2.has_class("baixado"):
-                                ep.remove_class("selecionado")
-                                ep2.add_class("selecionado")
-                                break
-                else:
-                    if not eps[0].has_class("baixado"):
-                        ep.remove_class("selecionado")
-                        eps[0].add_class("selecionado")
-                    else:
-                        for ep2 in eps[1:]:
-                            if not ep2.has_class("baixado"):
-                                ep.remove_class("selecionado")
-                                ep2.add_class("selecionado")
-                                break
-                break
+        navegacao("cima", 6, eps, "download")
 
     def action_shift_cima(self):
         eps = self.query(".anime_nome")
-        ep_selecionado = []
-        for n, ep in enumerate(eps.__iter__()):
-            if ep.has_class("selecionado"):
-                ep_selecionado.append(n)
-        n = ep_selecionado[0]
-        if n - 6 >= 0:
-            for ep in eps[n - 6 : n]:
-                if not ep.has_class("baixado"):
-                    ep.add_class("selecionado")
-        else:
-            for ep in eps[:n]:
-                if not ep.has_class("baixado"):
-                    ep.add_class("selecionado")
+        navegacao("shift_cima", 6, eps, "download")
 
     def action_baixo(self):
         eps = self.query(".anime_nome")
-        eps_s = self.query(".selecionado")
-        if len(eps_s) > 1:
-            for ep in eps_s[:-1]:
-                ep.remove_class("selecionado")
-        for n, ep in enumerate(eps.__iter__()):
-            if ep.has_class("selecionado"):
-                if n + 6 < eps.__len__():
-                    if not eps[n + 6].has_class("baixado"):
-                        ep.remove_class("selecionado")
-                        eps[n + 6].add_class("selecionado")
-                    else:
-                        for ep2 in eps[n + 6 :]:
-                            if not ep2.has_class("baixado"):
-                                ep.remove_class("selecionado")
-                                ep2.add_class("selecionado")
-                                break
-                else:
-                    if not eps[-1].has_class("baixado"):
-                        ep.remove_class("selecionado")
-                        eps[-1].add_class("selecionado")
-                    else:
-                        for ep2 in eps[-2::-1]:
-                            if not ep2.has_class("baixado"):
-                                ep.remove_class("selecionado")
-                                ep2.add_class("selecionado")
-                                break
-                break
+        navegacao("baixo", 6, eps, "download")
 
     def action_shift_baixo(self):
         eps = self.query(".anime_nome")
-        ep_selecionado = []
-        for n, ep in enumerate(eps.__iter__()):
-            if ep.has_class("selecionado"):
-                ep_selecionado.append(n)
-        n = ep_selecionado[-1]
-        if n + 6 < len(eps):
-            for ep in eps[n + 1 : n + 7]:
-                if not ep.has_class("baixado"):
-                    ep.add_class("selecionado")
-        else:
-            for ep in eps[n + 1 :]:
-                if not ep.has_class("baixado"):
-                    ep.add_class("selecionado")
+        navegacao("shift_baixo", 6, eps, "download")
 
     async def action_baixar(self):
         ep_s = self.query(".selecionado")
@@ -559,60 +612,20 @@ class AnimeExibirPesquisa(Screen):
         self.app.pop_screen()
 
     def action_direita(self):
-        posters = self.query(
-            ".poster",
-        )
-        for i, p in enumerate(posters):
-            if "selecionado" in p.classes:
-                if i + 1 < len(posters):
-                    p.remove_class("selecionado")
-                    posters[i + 1].add_class("selecionado")
-                    posters[i + 1].parent.scroll_visible()
-                break
+        posters = self.query(".poster")
+        navegacao("direita", 5, posters, "anime")
 
     def action_esquerda(self):
-        posters = self.query(
-            ".poster",
-        )
-        for i, p in enumerate(posters):
-            if "selecionado" in p.classes:
-                if i - 1 >= 0:
-                    p.remove_class("selecionado")
-                    posters[i - 1].add_class("selecionado")
-                    posters[i - 1].parent.scroll_visible()
-                break
+        posters = self.query(".poster")
+        navegacao("esquerda", 5, posters, "anime")
 
     def action_cima(self):
-        posters = self.query(
-            ".poster",
-        )
-        for i, p in enumerate(posters):
-            if "selecionado" in p.classes:
-                if i - 5 >= 0:
-                    p.remove_class("selecionado")
-                    posters[i - 5].add_class("selecionado")
-                    posters[i - 5].parent.scroll_visible()
-                else:
-                    p.remove_class("selecionado")
-                    posters[0].add_class("selecionado")
-                    posters[0].parent.scroll_visible()
-                break
+        posters = self.query(".poster")
+        navegacao("cima", 5, posters, "anime")
 
     def action_baixo(self):
-        posters = self.query(
-            ".poster",
-        )
-        for i, p in enumerate(posters):
-            if "selecionado" in p.classes:
-                if i + 5 < len(posters):
-                    p.remove_class("selecionado")
-                    posters[i + 5].add_class("selecionado")
-                    posters[i + 5].parent.scroll_visible()
-                else:
-                    p.remove_class("selecionado")
-                    posters[len(posters) - 1].add_class("selecionado")
-                    posters[len(posters) - 1].parent.scroll_visible()
-                break
+        posters = self.query(".poster")
+        navegacao("baixo", 5, posters, "anime")
 
     def action_enter(self):
         anime = self.query_one(".selecionado", AnimePoster)
@@ -680,64 +693,20 @@ class MenuPrincipal(Screen):
         self.carregar_dados()
 
     def action_direita(self):
-        posters = self.query(
-            ".poster",
-        )
-        for i, p in enumerate(posters):
-            if "selecionado" in p.classes:
-                poster_selecionado = p
-                n = i
-                if n + 1 < len(posters):
-                    poster_selecionado.remove_class("selecionado")
-                    posters[n + 1].add_class("selecionado")
-                    posters[n + 1].parent.scroll_visible()
-                break
+        posters = self.query(".poster")
+        navegacao('direita', 5, posters, 'anime')
 
     def action_esquerda(self):
-        posters = self.query(
-            ".poster",
-        )
-        for i, p in enumerate(posters):
-            if "selecionado" in p.classes:
-                poster_selecionado = p
-                n = i
-                if n - 1 >= 0:
-                    poster_selecionado.remove_class("selecionado")
-                    posters[n - 1].add_class("selecionado")
-                    posters[n - 1].parent.scroll_visible()
-                break
+        posters = self.query(".poster")
+        navegacao('esquerda', 5, posters, 'anime')
 
     def action_cima(self):
-        posters = self.query(
-            ".poster",
-        )
-        for i, p in enumerate(posters):
-            if "selecionado" in p.classes:
-                if i - 5 >= 0:
-                    p.remove_class("selecionado")
-                    posters[i - 5].add_class("selecionado")
-                    posters[i - 5].parent.scroll_visible()
-                else:
-                    p.remove_class("selecionado")
-                    posters[0].add_class("selecionado")
-                    posters[0].parent.scroll_visible()
-                break
+        posters = self.query(".poster")
+        navegacao('cima', 5, posters, 'anime')
 
     def action_baixo(self):
-        posters = self.query(
-            ".poster",
-        )
-        for i, p in enumerate(posters):
-            if "selecionado" in p.classes:
-                if i + 5 < len(posters):
-                    p.remove_class("selecionado")
-                    posters[i + 5].add_class("selecionado")
-                    posters[i + 5].parent.scroll_visible()
-                else:
-                    p.remove_class("selecionado")
-                    posters[-1].add_class("selecionado")
-                    posters[-1].parent.scroll_visible()
-                break
+        posters = self.query(".poster")
+        navegacao('baixo', 5, posters, 'anime')
 
     def action_enter(self):
         anime = self.query_one(".selecionado", AnimePoster)

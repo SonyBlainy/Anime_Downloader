@@ -32,13 +32,6 @@ from textual.screen import Screen
 from rich_pixels import Pixels
 
 
-class CustomHandler(logging.Handler):
-    def emit(self, record):
-        if record.levelno >= logging.ERROR:
-            os.startfile("log.log")
-            sys.exit()
-
-
 versao = "v1.3"
 from nucleo import core
 
@@ -760,8 +753,6 @@ if __name__ == "__main__":
         level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
-    logger = logging.getLogger()
-    logger.addHandler(CustomHandler())
     core.verificar_navegador()
     asyncio.run(core.verifica_cookies())
     app = AnimeDownloaderTUI()

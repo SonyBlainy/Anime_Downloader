@@ -7,7 +7,6 @@ import os
 import logging
 import asyncio
 
-path = os.getenv("caminho")
 
 if not os.path.exists("cookies.json"):
     with open("cookies.json", "w") as arquivo:

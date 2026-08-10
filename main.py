@@ -1,19 +1,8 @@
 import os
+from dotenv import load_dotenv
 
-
-def configurar_diretorios():
-    caminhos = {
-        "animes": os.path.join(
-            os.path.expandvars(r"%userprofile%"), "Desktop", "Animes"
-        )
-    }
-    for pasta in (i for i in caminhos.values()):
-        os.makedirs(pasta, exist_ok=True)
-    os.environ.update({"caminho": caminhos["animes"]})
-
-
-configurar_diretorios()
-import sys
+load_dotenv()
+from nucleo import core
 from multiprocessing import freeze_support
 import asyncio
 import logging
@@ -33,7 +22,6 @@ from rich_pixels import Pixels
 
 
 versao = "v1.3"
-from nucleo import core
 
 
 class AnimePoster(Static):

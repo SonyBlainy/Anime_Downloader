@@ -22,7 +22,10 @@ from deep_translator import GoogleTranslator as GT
 from collections.abc import Callable
 import time
 
-path = os.getenv("caminho")
+path = os.getenv("CAMINHO")
+path = path.split(",")
+path = os.path.join(os.path.expandvars(path[0]), *path[1:])
+os.makedirs(path, exist_ok=True)
 
 
 async def pesquisa_info(
@@ -132,7 +135,7 @@ async def pesquisar(nome: str, func_log: Callable[[str], None]):
 
 async def anime_info_pesquisa(id: int | None = None, nome: str | None = None):
     api = "https://api.myanimelist.net/v2"
-    client_id = "a81a1ee7e886f2f0c54ec850594667a3"
+    client_id = os.getenv("MAL_CLIENT")
     header = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
         "X-MAL-CLIENT-ID": client_id,

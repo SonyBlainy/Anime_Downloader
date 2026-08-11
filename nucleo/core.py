@@ -28,9 +28,16 @@ path = os.path.join(os.path.expandvars(path[0]), *path[1:])
 os.makedirs(path, exist_ok=True)
 
 
-async def pesquisa_info(
-    anime: dict, limitador: asyncio.Semaphore, tradutor: GT
-) -> dict | None:
+async def traduzir(texto: str) -> str:
+    try:
+        tradutor = GT("en", "pt")
+        return await asyncio.to_thread(tradutor.translate, texto)
+    except Exception:
+        logging.warning("Falha ao traduzir")
+        return texto
+
+
+async def pesquisa_info(anime: dict, limitador: asyncio.Semaphore) -> dict:
     async with limitador:
         try:
             if anime.get("id"):
@@ -39,8 +46,10 @@ async def pesquisa_info(
                 anime["info"] = await anime_info_pesquisa(nome=anime["nome"])
                 anime["id"] = anime["info"]["id"]
         except Exception:
-            return None
-        link = anime["info"]["main_picture"]["large"]
+            raise ValueError("Erro ao obter informações do MAL")
+        else:
+            info = anime["info"]
+        link = info["main_picture"]["large"]
         async with Client(timeout=40) as client:
             pagina = await client.get(link)
             imagem = pagina.content
@@ -55,30 +64,20 @@ async def pesquisa_info(
         anime["nome_pesquisa"] = anime["nome"]
         anime["nome"] = limpo
         logging.info(f"Nome do anime {limpo} tratado")
-        anime["info"]["synopsis"] = tradutor.translate(
-            ".".join(anime["info"]["synopsis"].split(".")[:-1])
-        )
-        anime["info"]["status"] = tradutor.translate(
-            " ".join(anime["info"]["status"].split("_"))
-        )
-        anime["info"]["genres"] = [
-            tradutor.translate(g["name"]) for g in anime["info"]["genres"]
-        ]
+        sinopse = traduzir(".".join(info["synopsis"].split(".")[:-1]))
+        status = traduzir(" ".join(info["status"].split("_")))
+        generos = [traduzir(g["name"]) for g in info["genres"]]
         try:
-            anime["info"]["broadcast"] = data_info(anime["info"]["broadcast"])
+            info["broadcast"] = data_info(info["broadcast"])
         except Exception:
-            anime["info"]["broadcast"] = {}
+            info["broadcast"] = {}
         else:
-            anime["info"]["broadcast"]["dia"] = tradutor.translate(
-                anime["info"]["broadcast"]["dia"]
-            )
-        anime["info"]["start_date"] = datetime.strptime(
-            anime["info"]["start_date"], "%Y-%m-%d"
-        )
-        anime["info"]["start_date"] = datetime.strftime(
-            anime["info"]["start_date"], "%d/%m/%Y"
-        )
-        anime["info"]["studios"] = [s["name"] for s in anime["info"]["studios"]]
+            info["broadcast"]["dia"] = await traduzir(info["broadcast"]["dia"])
+        info["synopsis"], info["status"] = await asyncio.gather(sinopse, status)
+        info["genres"] = await asyncio.gather(*generos)
+        info["start_date"] = datetime.strptime(info["start_date"], "%Y-%m-%d")
+        info["start_date"] = datetime.strftime(info["start_date"], "%d/%m/%Y")
+        info["studios"] = [s["name"] for s in info["studios"]]
         return anime
 
 
@@ -123,11 +122,10 @@ async def pesquisar(nome: str, func_log: Callable[[str], None]):
     else:
         func_log("Nenhum anime encontrado no Infinite")
     limitador = asyncio.Semaphore(5)
-    tradutor = GT("en", "pt")
-    animes = [pesquisa_info(a, limitador, tradutor) for a in animes]
+    animes = [pesquisa_info(a, limitador) for a in animes]
     func_log(f"Pesquisando informações sobre {len(animes)} animes...")
-    animes = await asyncio.gather(*animes)
-    animes = [a for a in animes if a]
+    animes = await asyncio.gather(*animes, return_exceptions=True)
+    animes = [a for a in animes if a and not isinstance(a, Exception)]
     animes = [series(anime) for anime in animes]
     animes = pd.DataFrame(animes)
     return animes

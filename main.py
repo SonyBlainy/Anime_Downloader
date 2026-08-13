@@ -250,6 +250,7 @@ class AnimeInfo(Screen):
         ("r", "deletar", "Excluir anime"),
         ("a", "abrir", "Abrir pasta do anime"),
         ("l", "listar", "Listar Episodios"),
+        ("u", "update_info", "Atualizar Informações"),
     ]
 
     def __init__(
@@ -330,6 +331,31 @@ class AnimeInfo(Screen):
     def action_abrir(self):
         if self.anime_series.get("caminho"):
             core.abrir_pasta(self.anime_series["caminho"])
+
+    async def action_update_info(self):
+        if self.anime_series.get("caminho"):
+            info = {
+                "nome": self.anime_series["nome_pesquisa"],
+                "link": self.anime_series["link"],
+                "id": self.anime_series["id"],
+                "server": self.anime_series["server"],
+            }
+            limitador = asyncio.Semaphore()
+            try:
+                info = await core.pesquisa_info(info, limitador)
+            except Exception:
+                logging.warning(f"Erro ao atualizar infomações do anime {info['nome']}")
+            else:
+                info = core.series(info)
+                info["caminho"] = self.anime_series["caminho"]
+                dados = self.app.screen_stack[1].animes
+                dados.loc[info.name] = info
+                with open("dados.parquet", "wb") as arquivo:
+                    dados.to_parquet(arquivo)
+                while len(self.app.screen_stack) > 1:
+                    self.app.pop_screen()
+                self.app.push_screen(MenuPrincipal())
+                self.app.push_screen(AnimeInfo(info))
 
     def action_sair(self):
         self.app.pop_screen()
@@ -426,10 +452,9 @@ class AnimeDownload(Screen):
             yield nome
             if ep_nome in self.eps_baixados:
                 nome.add_class("baixado")
-            if not selecionado:
-                if not nome.has_class("baixado"):
-                    nome.add_class("selecionado")
-                    selecionado = True
+            if not selecionado and not nome.has_class("baixado"):
+                nome.add_class("selecionado")
+                selecionado = True
 
     def action_direita(self):
         eps = self.query(".anime_nome")
@@ -675,19 +700,19 @@ class MenuPrincipal(Screen):
 
     def action_direita(self):
         posters = self.query(".poster")
-        navegacao('direita', 5, posters, 'anime')
+        navegacao("direita", 5, posters, "anime")
 
     def action_esquerda(self):
         posters = self.query(".poster")
-        navegacao('esquerda', 5, posters, 'anime')
+        navegacao("esquerda", 5, posters, "anime")
 
     def action_cima(self):
         posters = self.query(".poster")
-        navegacao('cima', 5, posters, 'anime')
+        navegacao("cima", 5, posters, "anime")
 
     def action_baixo(self):
         posters = self.query(".poster")
-        navegacao('baixo', 5, posters, 'anime')
+        navegacao("baixo", 5, posters, "anime")
 
     def action_enter(self):
         anime = self.query_one(".selecionado", AnimePoster)

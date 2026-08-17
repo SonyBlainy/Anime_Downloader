@@ -371,12 +371,27 @@ def criar_pasta(anime: pd.Series, existe=False) -> pd.Series:
 
 
 def verificar_animes(animes_data: pd.DataFrame) -> pd.DataFrame:
-    ids = [int(re.search(r"-(\d*)$", id).group(1)) for id in os.listdir(path)]
+    def obter_ids(ids: list[str]) -> list[int]:
+        ids_validos = []
+        for id in ids:
+            id = re.search(r"-(\d+)$", id)
+            if id:
+                ids_validos.append(int(id.group(1)))
+        return ids_validos
+
+    ids = obter_ids(os.listdir(path))
     for id in animes_data["id"]:
         if id not in ids:
             animes_data = animes_data[animes_data["id"] != id]
     for d in os.scandir(path):
-        id = int(re.search(r"-(\d*)$", d.name).group(1))
+        try:
+            id = int(re.search(r"-(\d+)$", d.name).group(1))
+        except Exception:
+            if d.is_dir():
+                shutil.rmtree(d.path)
+            else:
+                os.remove(d.path)
+            continue
         if id not in animes_data["id"].values:
             shutil.rmtree(d.path)
     with open("dados.parquet", "wb") as arquivo:

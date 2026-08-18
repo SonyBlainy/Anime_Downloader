@@ -384,6 +384,11 @@ class AnimeEpExibir(Screen):
     def compose(self) -> ComposeResult:
         yield Header()
         yield Footer()
+        for d in os.scandir(self.caminho):
+            if d.is_dir():
+                for a in os.scandir(d.path):
+                    core.mover_arquivo(a.path, self.caminho)
+                core.deletar_pasta(d.path)
         for n, d in enumerate(os.scandir(self.caminho)):
             nome = re.search(r"- ([^-]*) \[1080|- (\d*)\.", d.name)
             nome = [a for a in nome.groups() if a][0]

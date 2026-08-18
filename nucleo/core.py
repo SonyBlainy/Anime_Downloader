@@ -399,5 +399,9 @@ def verificar_animes(animes_data: pd.DataFrame) -> pd.DataFrame:
     return animes_data
 
 
+def deletar_pasta(pasta: str):
+    shutil.rmtree(pasta)
+
+
 def mover_arquivo(arquivo: str, destino: str):
     shutil.move(arquivo, destino)

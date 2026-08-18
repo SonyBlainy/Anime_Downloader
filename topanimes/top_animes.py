@@ -11,6 +11,8 @@ header = {
 
 async def pesquisar(nome: str) -> list:
     api = "https://topanimes.net/"
+    if nome.split().__len__() > 1:
+        nome = "+".join(nome.split())
     async with Client(headers=header) as navegador:
         pagina = await navegador.get(api, params={"s": nome})
         pagina = pagina.content
@@ -45,27 +47,41 @@ async def episodios(link: str):
     return dict(data)
 
 
-async def player(ep, limite):
+async def ruplay(link: str):
+    async with Client(headers=header) as navegador:
+        pagina = await navegador.get(link, follow_redirects=True)
+        pagina = pagina.content
+    pagina = BeautifulSoup(pagina, "html.parser")
+    js = pagina.select_one("body>script")
+    js = js.text
+    link = re.findall(r"var player = new Playerjs\(\{([\s\S]*?)\}\);", js)[-1]
+    link = re.search(r"\[1080p\](.*?\.mp4)", link)
+    if link:
+        link = link.group(1)
+        return link
+    else:
+        return None
+
+
+async def player(ep: tuple, limite: asyncio.Semaphore):
     async with limite:
         async with Client(headers=header) as navegador:
             pagina = await navegador.get(ep[1])
             pagina = pagina.content
         pagina = BeautifulSoup(pagina, "html.parser")
-        link = pagina.select_one("#playcontainer")
-        link = link.find("iframe", src=re.compile(r"csst.online"))
-        if link:
-            link = link.get("src")
-            if "topanimes.net" in link:
-                link = unquote(link)
-                link = re.search(r"\?url=(.*?)&poster", link).group(1)
-            async with Client(headers=header) as navegador:
-                pagina = await navegador.get(link, follow_redirects=True)
-                pagina = pagina.content
-            pagina = BeautifulSoup(pagina, "html.parser")
-            js = pagina.select_one("body>script")
-            js = js.text
-            link = re.findall(r"var player = new Playerjs\(\{([\s\S]*?)\}\);", js)[-1]
-            link = re.search(r"\[1080p\](.*?\.mp4)", link).group(1)
+        players = pagina.select_one("#playcontainer")
+        if players:
+            link = players.find("iframe", src=re.compile(r"csst\.online"))
+            if link:
+                link = link["src"]
+                if "topanimes.net" in link:
+                    link = unquote(link)
+                    link = re.search(r"\?url=(.*?)&poster", link)
+                    if link:
+                        link = link.group(1)
+                        link = await ruplay(link.__str__())
+            else:
+                raise ValueError("Nenhum link válido encontrado")
+            return (ep[0], link)
         else:
-            raise ValueError("Nenhum link válido encontrado")
-        return (ep[0], link)
+            raise ValueError("Nenhum player encontrado")

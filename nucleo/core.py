@@ -121,11 +121,11 @@ async def pesquisar(nome: str, func_log: Callable[[str], None]):
         animes.extend(infi)
     else:
         func_log("Nenhum anime encontrado no Infinite")
-    limitador = asyncio.Semaphore(5)
+    limitador = asyncio.Semaphore(4)
     animes = [pesquisa_info(a, limitador) for a in animes]
     func_log(f"Pesquisando informações sobre {len(animes)} animes...")
     animes = await asyncio.gather(*animes, return_exceptions=True)
-    animes = [a for a in animes if a and not isinstance(a, Exception)]
+    animes = [a for a in animes if not isinstance(a, Exception)]
     animes = [series(anime) for anime in animes]
     animes = pd.DataFrame(animes)
     return animes

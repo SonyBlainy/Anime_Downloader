@@ -7,12 +7,15 @@ header = {
 }
 
 
-async def pesquisar(nome: str):
+async def pesquisar(nome: str) -> list | None:
     if len(nome.split()) > 1:
         nome = "-".join(nome.split())
     api = f"https://infinitefansub.com/pesquisa/{nome}"
     async with Client(headers=header) as navegador:
-        pagina = await navegador.get(api)
+        try:
+            pagina = await navegador.get(api)
+        except Exception:
+            return None
         pagina = pagina.content
     pagina = BeautifulSoup(pagina, "html.parser")
     animes = pagina.select(".anime-list>.anime")

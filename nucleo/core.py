@@ -9,71 +9,76 @@ from erai import erai_animes, torrent
 from erai.erai_animes import ErroCookie
 from topanimes import top_animes
 from infinite import infinite
-from random import uniform
 import logging
 import os
 import sys
 import subprocess
 import shutil
 import asyncio
-from customtkinter import CTkLabel, CTkFrame
-import customtkinter as ctk
-from PIL import Image
+from textual.containers import Container
+from textual.widgets import ProgressBar, Label
 import pandas as pd
-import io
 from deep_translator import GoogleTranslator as GT
+from collections.abc import Callable
+import time
 
-path = os.getenv("caminho")
+path = os.getenv("CAMINHO")
+path = path.split(",")
+path = os.path.join(os.path.expandvars(path[0]), *path[1:])
+os.makedirs(path, exist_ok=True)
 
 
-def divisor(lista, tamanho=5):
-    for i in range(0, len(lista), tamanho):
-        yield lista[i : i + tamanho]
-
-
-async def pesquisa_info(anime: dict) -> dict:
-    tradutor = GT("en", "pt")
+async def traduzir(texto: str) -> str:
     try:
-        if "id" in anime.keys():
-            anime["info"] = await anime_info_pesquisa(anime["id"], info_anime=True)
+        tradutor = GT("en", "pt")
+        return await asyncio.to_thread(tradutor.translate, texto)
+    except Exception:
+        logging.warning("Falha ao traduzir")
+        return texto
+
+
+async def pesquisa_info(anime: dict, limitador: asyncio.Semaphore) -> dict:
+    async with limitador:
+        try:
+            if anime.get("id"):
+                anime["info"] = await anime_info_pesquisa(anime["id"])
+            else:
+                anime["info"] = await anime_info_pesquisa(nome=anime["nome"])
+                anime["id"] = anime["info"]["id"]
+        except Exception:
+            raise ValueError("Erro ao obter informações do MAL")
         else:
-            anime["info"] = await anime_info_pesquisa(nome=anime["nome"], pesquisa=True)
-            anime["id"] = anime["info"]["id"]
-    except Exception:
-        return None
-    link = anime["info"]["main_picture"]["large"]
-    async with Client(timeout=40) as client:
-        pagina = await client.get(link)
-        imagem = pagina.content
-    anime["imagem"] = imagem
-    lista_negra = [":", "°", "?", "-", ",", "“", "”", ".", "\\", "/"]
-    limpo = " ".join(
-        [
-            "".join([letra for letra in palavra if letra not in lista_negra])
-            for palavra in anime["nome"].split()
-        ]
-    )
-    anime["nome_pesquisa"] = anime["nome"]
-    anime["nome"] = limpo
-    logging.info(f"Nome do anime {limpo} tratado")
-    anime["info"]["synopsis"] = tradutor.translate(
-        ".".join(anime["info"]["synopsis"].split(".")[:-1])
-    )
-    anime["info"]["status"] = tradutor.translate(
-        " ".join(anime["info"]["status"].split("_"))
-    )
-    anime["info"]["genres"] = [
-        tradutor.translate(g["name"]) for g in anime["info"]["genres"]
-    ]
-    try:
-        anime["info"]["broadcast"] = data_info(anime["info"]["broadcast"])
-    except Exception:
-        anime["info"]["broadcast"] = {}
-    else:
-        anime["info"]["broadcast"]["dia"] = tradutor.translate(
-            anime["info"]["broadcast"]["dia"]
+            info = anime["info"]
+        link = info["main_picture"]["large"]
+        async with Client(timeout=40) as client:
+            pagina = await client.get(link)
+            imagem = pagina.content
+        anime["imagem"] = imagem
+        lista_negra = [":", "°", "?", "-", ",", "“", "”", ".", "\\", "/"]
+        limpo = " ".join(
+            [
+                "".join([letra for letra in palavra if letra not in lista_negra])
+                for palavra in anime["nome"].split()
+            ]
         )
-    return anime
+        anime["nome_pesquisa"] = anime["nome"]
+        anime["nome"] = limpo
+        logging.info(f"Nome do anime {limpo} tratado")
+        sinopse = traduzir(".".join(info["synopsis"].split(".")[:-1]))
+        status = traduzir(" ".join(info["status"].split("_")))
+        generos = [traduzir(g["name"]) for g in info["genres"]]
+        try:
+            info["broadcast"] = data_info(info["broadcast"])
+        except Exception:
+            info["broadcast"] = {}
+        else:
+            info["broadcast"]["dia"] = await traduzir(info["broadcast"]["dia"])
+        info["synopsis"], info["status"] = await asyncio.gather(sinopse, status)
+        info["genres"] = await asyncio.gather(*generos)
+        info["start_date"] = datetime.strptime(info["start_date"], "%Y-%m-%d")
+        info["start_date"] = datetime.strftime(info["start_date"], "%d/%m/%Y")
+        info["studios"] = [s["name"] for s in info["studios"]]
+        return anime
 
 
 def series(anime: dict) -> pd.Series:
@@ -82,47 +87,53 @@ def series(anime: dict) -> pd.Series:
     return anime
 
 
-async def pesquisar(nome: str, reversa=False):
+async def pesquisar(nome: str, func_log: Callable[[str], None]):
+    animes = []
+    func_log("Pesquisando animes no Erai...")
     while True:
         try:
             erai = await erai_animes.pesquisar(nome)
-            if erai:
-                lista = erai.copy()
-                if not reversa:
-                    animes = [top_animes.pesquisar(nome), infinite.pesquisar(nome)]
-                    animes = await asyncio.gather(*animes)
-                    for f in animes:
-                        lista.extend(f)
-                    lista = [pesquisa_info(a) for a in lista]
-                else:
-                    lista = [pesquisa_info(a) for a in erai]
-            elif not reversa:
-                animes = [top_animes.pesquisar(nome), infinite.pesquisar(nome)]
-                animes = await asyncio.gather(*animes)
-                lista = []
-                for f in animes:
-                    lista.extend(f)
-                lista = [pesquisa_info(a) for a in lista]
-            resultado = []
-            for chunck in divisor(lista):
-                c = await asyncio.gather(*chunck)
-                resultado.extend([a for a in c if a])
         except ErroCookie:
             await obter_cookies()
             continue
         except Exception:
-            logging.warning("Erro ao obter animes de erai", exc_info=True)
+            func_log("Erro ao pesquisar animes no Erai")
             erai = None
             break
         else:
             break
-    erai = [series(anime) for anime in resultado]
-    return erai
+    if erai:
+        func_log(f"{len(erai)} animes encontrados no Erai")
+        animes.extend(erai)
+    else:
+        func_log("Nenhum anime encontrado no Erai")
+    func_log("Pesquisando animes no TopAnimes...")
+    top = await top_animes.pesquisar(nome)
+    if top:
+        func_log(f"{len(top)} animes encontrados no TopAnimes")
+        animes.extend(top)
+    else:
+        func_log("Nenhum anime encontrado no TopAnimes")
+    func_log("Pesquisando animes no Infinite...")
+    infi = await infinite.pesquisar(nome)
+    if infi:
+        func_log(f"{len(infi)} encontrados no Infinite")
+        animes.extend(infi)
+    else:
+        func_log("Nenhum anime encontrado no Infinite")
+    limitador = asyncio.Semaphore(4)
+    animes = [pesquisa_info(a, limitador) for a in animes]
+    func_log(f"Pesquisando informações sobre {len(animes)} animes...")
+    animes = await asyncio.gather(*animes, return_exceptions=True)
+    animes = [a for a in animes if not isinstance(a, Exception)]
+    animes = [series(anime) for anime in animes]
+    animes = pd.DataFrame(animes)
+    return animes
 
 
-async def anime_info_pesquisa(id=None, nome=None, info_anime=False, pesquisa=False):
+async def anime_info_pesquisa(id: int | None = None, nome: str | None = None):
     api = "https://api.myanimelist.net/v2"
-    client_id = "a81a1ee7e886f2f0c54ec850594667a3"
+    client_id = os.getenv("MAL_CLIENT")
     header = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
         "X-MAL-CLIENT-ID": client_id,
@@ -130,20 +141,18 @@ async def anime_info_pesquisa(id=None, nome=None, info_anime=False, pesquisa=Fal
     infos = [
         "title",
         "start_date",
-        "end_date",
         "mean",
+        "studios",
         "status",
         "genres",
         "num_episodes",
         "start_season",
         "broadcast",
         "source",
-        "related_anime",
-        "related_manga",
         "synopsis",
     ]
 
-    async def info_id(id):
+    async def info_id(id: int | None):
         async with Client(headers=header) as client:
             anime_info = await client.get(
                 api + f"/anime/{id}", params={"fields": ",".join(infos)}
@@ -152,14 +161,14 @@ async def anime_info_pesquisa(id=None, nome=None, info_anime=False, pesquisa=Fal
                 raise Exception("Erro ao obter informações, descartando anime")
         return anime_info.json()
 
-    async def pesquisa_id(nome: str):
+    async def pesquisa_id(nome: str | None):
         async with Client(headers=header) as client:
             anime = await client.get(api + "/anime", params={"q": nome})
         return anime.json()
 
-    if info_anime:
+    if id:
         anime = await info_id(id)
-    elif pesquisa:
+    else:
         anime = await pesquisa_id(nome)
         anime = anime["data"][0]["node"]["id"]
         anime = await info_id(anime)
@@ -173,7 +182,7 @@ def data_info(broadcast):
         "Monday": 0,
         "Tuesday": 1,
         "Wednesday": 2,
-        "Thurday": 3,
+        "Thursday": 3,
         "Friday": 4,
         "Saturday": 5,
         "Sunday": 6,
@@ -193,57 +202,67 @@ def data_info(broadcast):
 
 
 async def selecionar_ep(anime: pd.Series) -> pd.Series:
-    if anime["server"] == "Erai":
-        eps = await erai_animes.extrair_ep(anime["link"])
-    elif anime["server"] == "TopAnimes":
-        eps = await top_animes.episodios(anime["link"])
-    elif anime["server"] == "Infinite":
-        eps = await infinite.episodios(anime["link"])
+    fontes = {
+        "Erai": lambda link: erai_animes.extrair_ep(link),
+        "TopAnimes": lambda link: top_animes.episodios(link),
+        "Infinite": lambda link: infinite.episodios(link),
+    }
+    eps = await fontes[anime["server"]](anime["link"])
     anime["ep"] = [{"ep": f"Episodio {ep}", "link": eps[ep]} for ep in eps.keys()]
     return anime
 
 
-async def baixar_ep_erai(ep):
+async def baixar(ep: dict, caixa: Container):
+    header = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+    }
+    extensao = re.search(r"/\d*(\.\w{3})", ep["link"]).group(1)
+    caminho = os.path.join(ep["caminho"], " - ".join(ep["ep"].split()) + extensao)
+    with open(caminho, "wb") as arquivo:
+        async with Client(headers=header) as cliente:
+            baixado = 0
+            tempo_utlimo_calculo = time.perf_counter()
+            baixado_intervalo = 0
+            velocidade_atual = 0
+            async with cliente.stream(
+                "GET", ep["link"], follow_redirects=True
+            ) as response:
+                total = int(response.headers["content-length"])
+                barra = ProgressBar(total, show_eta=False, classes="barra_download")
+                texto_velocidade = Label("0MB/s", classes="velocidade")
+                texto_quantidade = Label("0MB", classes="quantidade")
+                linha = Container(
+                    barra, texto_velocidade, texto_quantidade, classes="linha"
+                )
+                caixa.mount(linha)
+                async for chunck in response.aiter_raw():
+                    arquivo.write(chunck)
+                    tamanho_chunck = len(chunck)
+                    baixado += tamanho_chunck
+                    baixado_intervalo += tamanho_chunck
+                    tempo_agora = time.perf_counter()
+                    delta_tempo = tempo_agora - tempo_utlimo_calculo
+                    if delta_tempo > 0.5:
+                        velocidade_atual = baixado_intervalo / delta_tempo
+                        tempo_utlimo_calculo = tempo_agora
+                        baixado_intervalo = 0
+                        velocidade_atual /= 1024
+                        if velocidade_atual > 1024:
+                            velocidade_atual /= 1024
+                            velocidade_atual = f"{velocidade_atual:.2f}MB/s"
+                        else:
+                            velocidade_atual = f"{velocidade_atual:.2f}KB/s"
+                    barra.advance(tamanho_chunck)
+                    texto_velocidade.update(velocidade_atual.__str__())
+                    texto_quantidade.update(f"{baixado / 1024**2:.2f}MB")
+                texto_velocidade.update("0MB/s")
+
+
+async def baixar_ep_erai(ep: dict):
     qbit = torrent.Qbit()
     await qbit.init_sessao()
     if qbit.sessao:
         await qbit.baixar(ep)
-
-
-async def baixar_ep_top_animes(ep, frame: CTkFrame):
-    frame_barra = CTkFrame(frame, fg_color="transparent")
-    frame_barra.pack(fill="both", expand=True)
-    label = CTkLabel(frame_barra, text=f"Baixando {ep['ep']}... 0%", font=("Arial", 15))
-    label.pack(side="left", padx=10)
-    barra = ctk.CTkProgressBar(frame_barra)
-    barra.pack(expand=True, fill="x", padx=10)
-    barra.set(0)
-
-    def callback(progresso: float, velocidade: float):
-        barra.set(progresso)
-        label.configure(
-            text=f"Baixando {ep['ep']}... {progresso * 100:.2f}%   {velocidade}"
-        )
-
-    await top_animes.baixar(ep, callback)
-
-
-async def baixar_ep_infinite(ep, frame: CTkFrame):
-    frame_barra = CTkFrame(frame, fg_color="transparent")
-    frame_barra.pack(fill="both", expand=True)
-    label = CTkLabel(frame_barra, text=f"Baixando {ep['ep']}... 0%", font=("Arial", 15))
-    label.pack(side="left", padx=10)
-    barra = ctk.CTkProgressBar(frame_barra)
-    barra.pack(expand=True, fill="x", padx=10)
-    barra.set(0)
-
-    def callback(progresso: float, velocidade: float):
-        barra.set(progresso)
-        label.configure(
-            text=f"Baixando {ep['ep']}... {progresso * 100:.2f}%   {velocidade}"
-        )
-
-    await infinite.baixar(ep, callback)
 
 
 async def update(versao):
@@ -281,73 +300,21 @@ def abrir_pasta(caminho: str):
     )
 
 
-def deletar_anime(anime: pd.Series, dados: pd.DataFrame) -> pd.DataFrame:
+def deletar_anime(anime: pd.Series, dados: pd.DataFrame) -> None:
     shutil.rmtree(anime["caminho"])
     dados = dados.drop(anime.name)
-    return dados
-
-
-async def torrent_info():
-    pass
-
-
-def gerar_frames(anime: pd.Series) -> dict:
-    eps = {}
-    for ep in os.scandir(anime["caminho"]):
-        ep_n = re.search(r" - (\d{1,2}) | - (\d{1,2}\.\d) ", ep.name).group(1)
-        duracao = subprocess.run(
-            [
-                "ffprobe.exe",
-                "-v",
-                "quiet",
-                "-show_entries",
-                "format=duration",
-                "-of",
-                "csv=p=0",
-                ep.path,
-            ],
-            capture_output=True,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-        )
-        duracao = float(duracao.stdout.decode().strip())
-        tempo = uniform(0, duracao * 0.95)
-        comando = subprocess.run(
-            [
-                "ffmpeg.exe",
-                "-ss",
-                str(tempo),
-                "-i",
-                ep.path,
-                "-vframes",
-                "1",
-                "-q:v",
-                "2",
-                "-f",
-                "mjpeg",
-                "pipe:1",
-            ],
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-        )
-        if comando.returncode == 0:
-            imagem = Image.open(io.BytesIO(comando.stdout))
-            eps[str(ep_n)] = imagem
-    return eps
-
-
-def label_log(frame: CTkFrame, texto: str):
-    label = CTkLabel(frame, text=texto, font=("Arial", 15))
-    return label
+    with open("dados.parquet", "wb") as arquivo:
+        dados.to_parquet(arquivo)
 
 
 async def obter_cookies():
     cookies = await navegador.cookies()
-    lista_cookies = [
-        {i["name"]: i["value"]} for i in cookies if "wordpress_logged_in" in i["name"]
-    ][0]
+    for c in cookies:
+        if "wordpress_logged_in" in c["name"]:
+            cookie = {c["name"]: c["value"]}
+            break
     with open("cookies.json", "w") as arquivo:
-        json.dump(lista_cookies, arquivo, indent=4)
+        json.dump(cookie, arquivo, indent=4)
 
 
 def verificar_navegador():
@@ -388,128 +355,52 @@ async def verifica_cookies():
         await obter_cookies()
 
 
-def verificar_ffmpeg():
-    if not os.path.exists(r".\ffmpeg"):
-        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
-        link = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
-        subprocess.run(
-            [
-                "powershell",
-                "-NoProfile",
-                "-Command",
-                "curl.exe",
-                "-L",
-                "--progress-bar",
-                "-A",
-                f'"{user_agent}"',
-                "-o",
-                "ffmpeg.zip",
-                f'"{link}"',
-            ]
-        )
-        with zipfile.ZipFile("ffmpeg.zip") as arquivo:
-            arquivo.extractall(".")
-        os.remove("ffmpeg.zip")
-        caminho = os.listdir(".")
-        caminho = [a for a in caminho if "ffmpeg-" in a][0]
-        caminho = rf".\{caminho}"
-        os.mkdir("ffmpeg")
-        for i in os.scandir(caminho + r"\bin"):
-            os.replace(i.path, r".\ffmpeg\\" + i.name)
-        shutil.rmtree(caminho)
-    os.environ["PATH"] = (
-        os.path.join(os.path.abspath("."), "ffmpeg")
-        + os.pathsep
-        + os.environ.get("PATH", "")
-    )
-
-
-def dataset() -> pd.DataFrame:
-    colunas = [
-        "nome_pesquisa",
-        "info",
-        "caminho",
-        "link",
-        "imagem",
-        "id",
-        "ep",
-        "server",
-    ]
-    data = pd.DataFrame(columns=colunas)
-    data.index.name = "Anime"
-    data.index = data.index.astype(str)
-    return data
-
-
-def adicionar_anime(data: pd.DataFrame, anime: pd.Series) -> pd.DataFrame:
-    data.loc[anime.name] = anime
-    with open("dados.parquet", "wb") as arquivo:
-        data.to_parquet(arquivo)
-    return data
+def adicionar_anime(data: pd.DataFrame, anime: pd.Series) -> None:
+    if anime["id"] not in data["id"].values:
+        data.loc[anime.name] = anime
+        with open("dados.parquet", "wb") as arquivo:
+            data.to_parquet(arquivo)
 
 
 def criar_pasta(anime: pd.Series, existe=False) -> pd.Series:
-    caminho = "_".join(anime.name.split())
-    if not existe:
-        caminho = os.path.join(path, caminho) + f"-{anime['id']}"
-        os.makedirs(caminho, exist_ok=True)
-    else:
-        caminho = os.path.join(path, caminho)
-        os.rename(caminho, caminho + f"-{anime['id']}")
+    caminho = "_".join(anime.name.__str__().split())
+    caminho = os.path.join(path, caminho) + f"-{anime['id']}"
+    os.makedirs(caminho, exist_ok=True)
     anime["caminho"] = caminho
     return anime
 
 
-async def verificar_animes(animes_data: pd.DataFrame, vazio=False):
-    async def info(id):
-        dados = await anime_info_pesquisa(id, info_anime=True)
-        nome_limpo = " ".join(
-            [
-                "".join([letra for letra in palavra if letra not in ["."]])
-                for palavra in dados["title"].split()
-            ]
-        )
-        print(dados, nome_limpo, sep="\n")
-        dados = await pesquisar(nome_limpo, True)
-        dados = await selecionar_ep([a for a in dados if a["id"] == id][0])
-        dados = criar_pasta(dados)
-        return dados
+def verificar_animes(animes_data: pd.DataFrame) -> pd.DataFrame:
+    def obter_ids(ids: list[str]) -> list[int]:
+        ids_validos = []
+        for id in ids:
+            id = re.search(r"-(\d+)$", id)
+            if id:
+                ids_validos.append(int(id.group(1)))
+        return ids_validos
 
+    ids = obter_ids(os.listdir(path))
+    for id in animes_data["id"]:
+        if id not in ids:
+            animes_data = animes_data[animes_data["id"] != id]
     for d in os.scandir(path):
         try:
-            id = int(d.name.split("-")[-1])
+            id = int(re.search(r"-(\d+)$", d.name).group(1))
         except Exception:
-            nome = " ".join(d.name.split("_"))
-            try:
-                dados = await pesquisar(nome)
-                if not dados:
-                    raise ValueError("Nenhum anime encontrado, apagando pasta...")
-            except Exception:
+            if d.is_dir():
                 shutil.rmtree(d.path)
-                continue
             else:
-                dados = await selecionar_ep(dados[0])
-                dados = criar_pasta(dados, True)
-                animes_data.loc[dados.name] = dados
-                del dados
-        else:
-            if not vazio:
-                if id not in animes_data["id"].values:
-                    dados = await info(id)
-                else:
-                    continue
-            else:
-                dados = await info(id)
-            if "dados" in locals():
-                animes_data.loc[dados.name] = dados
-                del dados
-    animes_lista = [int(a.split("-")[-1]) for a in os.listdir(path)]
-    for id in animes_data["id"].to_list():
-        if id not in animes_lista:
-            animes_data = animes_data[animes_data["id"] != id]
+                os.remove(d.path)
+            continue
+        if id not in animes_data["id"].values:
+            shutil.rmtree(d.path)
     with open("dados.parquet", "wb") as arquivo:
         animes_data.to_parquet(arquivo)
     return animes_data
+
+
+def deletar_pasta(pasta: str):
+    shutil.rmtree(pasta)
 
 
 def mover_arquivo(arquivo: str, destino: str):

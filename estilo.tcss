@@ -1,0 +1,133 @@
+.painel_animes {
+    layout: grid;
+    grid-size: 5;
+    overflow-y: auto;
+    grid-rows: auto;
+    grid-gutter: 2;
+    .cartao-anime {
+        align: center top;
+        height: auto;
+        width: 100%;
+        .poster {
+            width: auto;
+            height: auto;
+            box-sizing: content-box;
+            border: solid $background;
+            &.selecionado {
+                border: solid white;
+            }
+        }
+        .nome_anime {
+            text-align: center;
+            width: 100%;
+        }
+    }
+  }
+#anime_info_frame {
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 45 1fr;
+    grid-gutter: 2;
+    .poster {
+        width: 100%;
+    }
+    #infos_anime {
+        layout: vertical;
+        height: 100%;
+        #anime_nome_frame {
+            height: auto;
+        }
+        #infos_frame {
+            layout: grid;
+            grid-size: 2;
+            height: auto;
+            grid-rows: auto;
+            margin: 1 0;
+            grid-columns: 1fr;
+        }
+        #generos {
+            width: 100%;
+        }
+        #sinopse_frame {
+            layout: vertical;
+            width: 100%;
+            height: 1fr;
+            overflow-y: auto;
+            margin: 1 0;
+            #sinopse {
+                width: 100%;
+            }
+        }
+    }
+}
+AnimeDownload {
+    layout: grid;
+    grid-size: 6;
+    grid-columns: 1fr;
+    grid-rows: auto;
+    grid-gutter: 2 5;
+    .anime_nome {
+        width: 100%;
+        height: auto;
+        content-align: center middle;
+        border: solid white;
+        &.baixado {
+            border: solid blue;
+        }
+        &.selecionado {
+            border: solid green;
+        }
+    }
+}
+AnimeEpExibir {
+    layout: grid;
+    grid-size: 6;
+    grid-columns: 1fr;
+    grid-rows: auto;
+    grid-gutter: 2 5;
+    .anime_nome {
+        width: 100%;
+        height: auto;
+        content-align: center middle;
+        border: solid white;
+        &.selecionado {
+            border: solid green;
+        }
+    }
+}
+AnimeBarraDownload {
+    #barra_download_caixa {
+        layout: vertical;
+        width: 100%;
+        height: 100%;
+        align: center middle;
+        .linha {
+            layout: horizontal;
+            align: center middle;
+            height: 4;
+            width: auto;
+            .barra_download {
+                margin: 0 1;
+            }
+            .quantidade {
+                margin: 0 1;
+            }
+        }
+    }
+}
+.n_animes_frame {
+    height: auto;
+    width: 100%;
+    column-span: 5;
+    .n_animes {
+        text-align: right;
+        width: 100%;
+        height: auto;
+    }
+}
+AnimePesquisa {
+    align: center middle;
+    #pesquisa {
+      width: 100%;
+    }
+  }

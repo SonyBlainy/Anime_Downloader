@@ -122,7 +122,7 @@ async def extrair_ep(link: str):
         if "Korean Audio" and "Chinese Audio" not in paren:
             tipo = ep.select_one("tr>th>a").get("data-title")
             if tipo == "Encodings":
-                nome = re.search(r" - (\w*) ", ep_elemento_texto).group(1)
+                nome = re.search(r" - ([\w\.]*) ", ep_elemento_texto).group(1)
                 link = ep.select("tr")[-1]
                 link = link.find("a", text="magnet").get("href")
                 heavc[nome] = link
@@ -131,7 +131,7 @@ async def extrair_ep(link: str):
                     nome = re.search(r" - (.*)$", ep_elemento_texto).group(1)
                     nome = nome.strip()
                 else:
-                    nome = re.search(r" - (\w*) ", ep_elemento_texto).group(1)
+                    nome = re.search(r" - ([\w\.]*) ", ep_elemento_texto).group(1)
                 link = ep.find("span", text=re.compile(r"1080p "))
                 link = link.parent
                 link = link.find("a", text="magnet").get("href")

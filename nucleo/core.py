@@ -18,7 +18,7 @@ import asyncio
 from textual.containers import Container
 from textual.widgets import ProgressBar, Label
 import pandas as pd
-from deep_translator import GoogleTranslator as GT
+import translators as ts
 from collections.abc import Callable
 import time
 
@@ -30,10 +30,19 @@ os.makedirs(path, exist_ok=True)
 
 async def traduzir(texto: str) -> str:
     try:
-        tradutor = GT("en", "pt")
-        return await asyncio.to_thread(tradutor.translate, texto)
-    except Exception:
-        logging.warning("Falha ao traduzir")
+        texto_traduzido = await asyncio.to_thread(
+            ts.translate_text, texto, translator="google", to_language="pt"
+        )
+        if isinstance(texto_traduzido, str):
+            if len(texto.split()) == 1:
+                texto_divido = texto_traduzido.split()
+                if len(texto_divido) > 1:
+                    return texto_divido[1]
+            return texto_traduzido
+        else:
+            return texto
+    except Exception as e:
+        logging.warning(f"Falha ao traduzir {e}")
         return texto
 
 
@@ -75,6 +84,7 @@ async def pesquisa_info(anime: dict, limitador: asyncio.Semaphore) -> dict:
             info["broadcast"]["dia"] = await traduzir(info["broadcast"]["dia"])
         info["synopsis"], info["status"] = await asyncio.gather(sinopse, status)
         info["genres"] = await asyncio.gather(*generos)
+        info["genres"] = [g.capitalize() for g in info["genres"]]
         info["start_date"] = datetime.strptime(info["start_date"], "%Y-%m-%d")
         info["start_date"] = datetime.strftime(info["start_date"], "%d/%m/%Y")
         info["studios"] = [s["name"] for s in info["studios"]]

@@ -77,16 +77,16 @@ async def extrair_ep(link: str):
     async with Client(headers=header, cookies=cookie) as client:
         pagina = await client.get(link)
         pagina = BeautifulSoup(pagina.content, "html.parser")
-        pagina = pagina.select_one(".tab-content")
+    eps = pagina.select_one(".tab-content")
     no_ar_lista = pagina.select("#menu1>table")
     no_ar_lista = [
         i
         for i in no_ar_lista
         if i.select_one('tr:nth-child(2)>th>span[data-title="Portuguese(Brazil)"]')
     ]
-    heavc_lista = pagina.select("#menu5>table")
-    batch = pagina.select("#menu3>table")
-    filmes = pagina.select("#menu4>table")
+    heavc_lista = eps.select("#menu5>table")
+    batch = eps.select("#menu3>table")
+    filmes = eps.select("#menu4>table")
     if heavc_lista:
         heavc_lista = [
             i
@@ -119,7 +119,7 @@ async def extrair_ep(link: str):
     for ep in reversed(no_ar_lista):
         ep_elemento_texto = ep.select_one("tr>th>a:nth-child(2)").text
         paren = re.findall(r"\((.*?)\)", ep_elemento_texto)
-        if "Korean Audio" and "Chinese Audio" not in paren:
+        if "Korean Audio" not in paren and "Chinese Audio" not in paren:
             tipo = ep.select_one("tr>th>a").get("data-title")
             if tipo == "Encodings":
                 nome = re.search(r" - ([\w\.]*) ", ep_elemento_texto).group(1)

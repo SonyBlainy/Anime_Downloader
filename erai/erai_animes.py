@@ -87,6 +87,7 @@ async def extrair_ep(link: str):
     heavc_lista = eps.select("#menu5>table")
     batch = eps.select("#menu3>table")
     filmes = eps.select("#menu4>table")
+    pagina_load = pagina.find("script", id="erai-main-js-extra")
     if heavc_lista:
         heavc_lista = [
             i
@@ -116,6 +117,26 @@ async def extrair_ep(link: str):
         )
     heavc = {}
     noar = {}
+    if pagina_load:
+        pagina_load = pagina_load.text
+        pagina_load = re.search(r"var load_more_0_params=(\{[\s\S]*?\});", pagina_load)
+        if pagina_load:
+            pagina_load = json.loads(pagina_load.group(1))
+            header_ajax = header.copy()
+            header_ajax["Referer"] = link
+            async with Client(headers=header_ajax, cookies=cookie) as navegador:
+                pagina_ajax = await navegador.post(
+                    pagina_load["ajaxurl"],
+                    data={
+                        "action": "load_more_0",
+                        "page": "2",
+                        "post_id": pagina_load["post_id"],
+                        "security": pagina_load["security"],
+                    },
+                )
+                pagina_ajax = BeautifulSoup(pagina_ajax.content, "html.parser")
+            pagina_ajax = pagina_ajax.select("table")
+            no_ar_lista.extend(pagina_ajax)
     for ep in reversed(no_ar_lista):
         ep_elemento_texto = ep.select_one("tr>th>a:nth-child(2)").text
         paren = re.findall(r"\((.*?)\)", ep_elemento_texto)

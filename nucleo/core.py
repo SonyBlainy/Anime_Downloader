@@ -31,7 +31,11 @@ os.makedirs(path, exist_ok=True)
 async def traduzir(texto: str) -> str:
     try:
         texto_traduzido = await asyncio.to_thread(
-            ts.translate_text, texto, translator="google", to_language="pt"
+            ts.translate_text,
+            texto,
+            translator="google",
+            from_language="en",
+            to_language="pt",
         )
         if isinstance(texto_traduzido, str):
             if len(texto.split()) == 1:

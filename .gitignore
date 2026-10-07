@@ -1,15 +1,12 @@
 salvar.py
-anime.txt
 teste.py
 __pycache__
 **/__pycache__
 ambiente
 log.log
-.vscode
 output
 setup.py
 Anime Downloader.spec
-ffmpeg
 build
 dist
 compilador.iss
@@ -18,3 +15,4 @@ Anime_Downloader.egg-info
 chrome-win64
 dados.parquet
 .env
+executavel.py

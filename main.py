@@ -19,9 +19,13 @@ from textual import work, on
 from textual.binding import Binding
 from textual.screen import Screen
 from rich_pixels import Pixels
+import sys
 
-
-versao = "v1.3"
+versao = "v2.0"
+if getattr(sys, "frozen", False):
+    BASE_DIR = sys.prefix
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class AnimePoster(Static):
@@ -674,7 +678,7 @@ class LogPesquisa(Screen):
 
 
 class AnimeDownloaderTUI(App):
-    CSS_PATH = "estilo.tcss"
+    CSS_PATH = os.path.join(BASE_DIR, "estilo.tcss")
     BINDINGS = [("q", "sair", "Sair")]
     ENABLE_COMMAND_PALETTE = False
 

@@ -19,7 +19,7 @@ from textual.containers import Container
 from textual.widgets import ProgressBar, Label
 import pandas as pd
 import translators as ts
-from collections.abc import Callable
+from collections.abc import Callable, Awaitable
 import time
 
 path = os.getenv("CAMINHO")
@@ -30,12 +30,16 @@ os.makedirs(path, exist_ok=True)
 
 async def traduzir(texto: str) -> str:
     try:
-        texto_traduzido = await asyncio.to_thread(
-            ts.translate_text,
-            texto,
-            translator="google",
-            from_language="en",
-            to_language="pt",
+        texto_traduzido = await asyncio.wait_for(
+            asyncio.to_thread(
+                ts.translate_text,
+                texto,
+                translator="google",
+                from_language="en",
+                to_language="pt",
+                timeout=50,
+            ),
+            60,
         )
         if isinstance(texto_traduzido, str):
             if len(texto.split()) == 1:
@@ -50,7 +54,11 @@ async def traduzir(texto: str) -> str:
         return texto
 
 
-async def pesquisa_info(anime: dict, limitador: asyncio.Semaphore) -> dict:
+async def pesquisa_info(
+    anime: dict,
+    limitador: asyncio.Semaphore,
+    genero: Callable[[str], Awaitable[str]] = traduzir,
+) -> dict:
     async with limitador:
         try:
             if anime.get("id"):
@@ -63,7 +71,7 @@ async def pesquisa_info(anime: dict, limitador: asyncio.Semaphore) -> dict:
         else:
             info = anime["info"]
         link = info["main_picture"]["large"]
-        async with Client(timeout=40) as client:
+        async with Client(timeout=20) as client:
             pagina = await client.get(link)
             imagem = pagina.content
         anime["imagem"] = imagem
@@ -79,7 +87,7 @@ async def pesquisa_info(anime: dict, limitador: asyncio.Semaphore) -> dict:
         logging.info(f"Nome do anime {limpo} tratado")
         sinopse = traduzir(".".join(info["synopsis"].split(".")[:-1]))
         status = traduzir(" ".join(info["status"].split("_")))
-        generos = [traduzir(g["name"]) for g in info["genres"]]
+        generos = [genero(g["name"]) for g in info["genres"]]
         try:
             info["broadcast"] = data_info(info["broadcast"])
         except Exception:
@@ -136,7 +144,14 @@ async def pesquisar(nome: str, func_log: Callable[[str], None]):
     else:
         func_log("Nenhum anime encontrado no Infinite")
     limitador = asyncio.Semaphore(4)
-    animes = [pesquisa_info(a, limitador) for a in animes]
+    generos_cache = {}
+
+    def cache_genero(genero: str) -> Awaitable[str]:
+        if genero not in generos_cache:
+            generos_cache[genero] = asyncio.create_task(traduzir(genero))
+        return generos_cache[genero]
+
+    animes = [pesquisa_info(a, limitador, cache_genero) for a in animes]
     func_log(f"Pesquisando informações sobre {len(animes)} animes...")
     animes = await asyncio.gather(*animes, return_exceptions=True)
     animes = [a for a in animes if not isinstance(a, Exception)]
@@ -326,9 +341,9 @@ async def obter_cookies():
     for c in cookies:
         if "wordpress_logged_in" in c["name"]:
             cookie = {c["name"]: c["value"]}
+            with open("cookies.json", "w") as arquivo:
+                json.dump(cookie, arquivo, indent=4)
             break
-    with open("cookies.json", "w") as arquivo:
-        json.dump(cookie, arquivo, indent=4)
 
 
 def verificar_navegador():

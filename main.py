@@ -740,8 +740,9 @@ class MenuPrincipal(Screen):
                 self.animes = pd.read_parquet(arquivo)
         else:
             self.animes = pd.DataFrame()
-        self.animes = core.verificar_animes(self.animes)
-        self.animes.sort_index(inplace=True)
+        if not self.animes.empty:
+            self.animes = core.verificar_animes(self.animes)
+            self.animes.sort_index(inplace=True)
         self.exibir_animes()
 
     def exibir_animes(self):
